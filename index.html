@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>LightModal с dialog - исправленная версия</title>
+	<link rel="stylesheet" href="lightmodal.css">
+	<link rel="stylesheet" href="base.css">
+</head>
+
+<body>
+	<div class="container">
+		<h1>🚀 LightModal с native Dialog</h1>
+		<p>Используем современный элемент &lt;dialog&gt; с исправленным отображением inline-content</p>
+
+		<button class="demo-button" onclick="openModal('inline-simple')">
+			Простой контент
+		</button>
+
+		<button class="demo-button" onclick="openModal('inline-form')">
+			Форма обратной связи
+		</button>
+
+		<a href="https://www.youtube.com/watch?v=6v4S0mRSnO4" data-lightmodal data-lm-width="100%">
+			Открыть YouTube
+		</a>
+
+		<div class="gallery">
+			<a href="https://img3.akspic.ru/crops/9/6/3/1/8/181369/181369-apelsin-iskusstvennyj_intellekt-obuchenie-transformator-besplatno-3840x2160.jpg"
+				data-lightmodal data-gallery="nature" data-caption="Фото 1">
+				<img
+					src="https://img3.akspic.ru/crops/9/6/3/1/8/181369/181369-apelsin-iskusstvennyj_intellekt-obuchenie-transformator-besplatno-3840x2160.jpg"
+					alt="Thumb 1" width="300" height="250">
+			</a>
+
+			<a href="https://img2.akspic.ru/crops/6/7/3/1/8/181376/181376-krupnyj_plan-licenziya-svet-takt-youtub-3840x2160.jpg"
+				data-lightmodal data-gallery="nature" data-caption="Фото 2">
+				<img
+					src="https://img2.akspic.ru/crops/6/7/3/1/8/181376/181376-krupnyj_plan-licenziya-svet-takt-youtub-3840x2160.jpg"
+					alt="Thumb 2" width="300" height="250">
+			</a>
+		</div>
+
+		<button class="demo-button" onclick="openModal('inline-long')">
+			Длинный контент
+		</button>
+
+		<p><strong>Преимущества &lt;dialog&gt;:</strong></p>
+		<ul>
+			<li>Семантическая корректность</li>
+			<li>Встроенная поддержка ESC для закрытия</li>
+			<li>Автоматический focus trap</li>
+			<li>Нативная поддержка backdrop</li>
+			<li>Лучшая доступность</li>
+		</ul>
+	</div>
+
+	<!-- Скрытый inline контент -->
+	<div id="inline-simple" class="inline-content">
+		<h3>Простой inline контент</h3>
+		<p>Этот контент теперь правильно отображается в native dialog!</p>
+		<p>Chrome поддерживает &lt;dialog&gt; с версии 37 (2014 год).</p>
+		<p><strong>Текущая версия Chrome:</strong> 138 - полная поддержка ✅</p>
+	</div>
+
+	<div id="inline-form" class="inline-content">
+		<h3>Форма обратной связи</h3>
+		<form class="demo-form" onsubmit="alert('Форма отправлена!'); return false;">
+			<label>Имя:</label>
+			<input type="text" required>
+
+			<label>Email:</label>
+			<input type="email" required>
+
+			<label>Сообщение:</label>
+			<textarea rows="4" required placeholder="Введите ваше сообщение..."></textarea>
+
+			<button type="submit">Отправить сообщение</button>
+		</form>
+	</div>
+
+	<div id="inline-long" class="inline-content">
+		<h3>Длинный прокручиваемый контент</h3>
+		<p>Демонстрация правильной работы скроллинга в dialog.</p>
+
+		<h4>Что такое dialog элемент?</h4>
+		<p>Элемент &lt;dialog&gt; представляет диалоговое окно или другой интерактивный компонент, такой как инспектор или
+			окно.</p>
+
+		<h4>Методы dialog</h4>
+		<ul>
+			<li><code>dialog.show()</code> - показать немодальный диалог</li>
+			<li><code>dialog.showModal()</code> - показать модальный диалог</li>
+			<li><code>dialog.close()</code> - закрыть диалог</li>
+		</ul>
+
+		<h4>События dialog</h4>
+		<ul>
+			<li><code>close</code> - срабатывает при закрытии</li>
+			<li><code>cancel</code> - срабатывает при нажатии ESC</li>
+		</ul>
+
+		<h4>Поддержка браузерами</h4>
+		<p>✅ Chrome 37+ (2014)<br>
+			✅ Firefox 98+ (2022)<br>
+			✅ Safari 15.4+ (2022)<br>
+			✅ Edge 79+ (2020)</p>
+
+		<h4>Преимущества</h4>
+		<p>Native dialog обеспечивает лучшую доступность, автоматический focus management и семантическую корректность без
+			дополнительного JavaScript.</p>
+	</div>
+
+	<script src="lightmodal.js"></script>
+</body>
+
+</html>
