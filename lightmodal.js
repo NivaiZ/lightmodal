@@ -1,8 +1,11 @@
-// LightModal 3.x – Полностью исправленная версия для работы с CSS
+// LightModal 4.0 – Улучшенная версия с полным функционалом как у Fancybox
 (function () {
 	'use strict';
 
-	// Helper functions
+	// ============================= //
+	// КОНСТАНТЫ И УТИЛИТЫ
+	// ============================= //
+
 	const $ = (s, c = document) => c.querySelector(s);
 	const $$ = (s, c = document) => c.querySelectorAll(s);
 	const h = (tag, cls = '') => {
@@ -11,53 +14,54 @@
 		return n;
 	};
 
+	// Утилита для глубокого слияния объектов
+	const merge = (target, ...sources) => {
+		for (const source of sources) {
+			for (const key in source) {
+				if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+					target[key] = target[key] || {};
+					merge(target[key], source[key]);
+				} else {
+					target[key] = source[key];
+				}
+			}
+		}
+		return target;
+	};
+
 	// Media detection
 	const IMG_RE = /\.(png|jpe?g|webp|avif|gif|svg)(\?.*)?$/i;
 	const VIDEO_RE = /\.(mp4|webm|ogg|m4v)(\?.*)?$/i;
+	const YOUTUBE_RE = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([^&#?]{11})/;
+	const VIMEO_RE = /vimeo\.com\/(?:video\/)?(\d+)/;
+
 	const isImg = (type, src) => type === 'image' || (!type && IMG_RE.test(src));
 	const isVideo = (type, src) => type === 'video' || (!type && VIDEO_RE.test(src));
-
-	// Video service detection
-	const ytId = u => u.match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/)?.[1];
-	const vmId = u => u.match(/vimeo\.com\/(?:video\/)?(\d{6,})/)?.[1];
-	const ruId = u => u.match(/rutube\.ru\/(?:video|play\/embed)\/([a-f0-9-]{16,})/i)?.[1];
-	const isVk = u => /vk\.com\/video/.test(u);
+	const getYouTubeId = url => (url.match(YOUTUBE_RE) || [])[1];
+	const getVimeoId = url => (url.match(VIMEO_RE) || [])[1];
 
 	// Device detection
 	const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 	const isMobile = () => window.innerWidth <= 768;
 
-	// Accessibility helpers
-	let liveRegion = null;
-	const announce = (msg) => {
-		if (!liveRegion) {
-			liveRegion = h('div');
-			liveRegion.setAttribute('aria-live', 'polite');
-			liveRegion.setAttribute('aria-atomic', 'true');
-			liveRegion.style.cssText = 'position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden';
-			document.body.appendChild(liveRegion);
-		}
-		liveRegion.textContent = msg;
-		setTimeout(() => liveRegion.textContent = '', 1000);
+	// States
+	const States = {
+		Init: 0,
+		Ready: 1,
+		Closing: 2,
+		Destroyed: 3
 	};
 
-	// Improved scroll lock
+	// Scroll lock implementation
 	const scrollLock = {
 		locked: false,
 		scrollbarWidth: 0,
-		originalStyles: new Map(),
 
 		getScrollbarWidth() {
 			if (this.scrollbarWidth) return this.scrollbarWidth;
 
 			const scrollDiv = h('div');
-			scrollDiv.style.cssText = `
-				position: absolute;
-				top: -9999px;
-				width: 50px;
-				height: 50px;
-				overflow: scroll;
-			`;
+			scrollDiv.style.cssText = 'position:absolute;top:-9999px;width:50px;height:50px;overflow:scroll;';
 			document.body.appendChild(scrollDiv);
 			this.scrollbarWidth = scrollDiv.offsetWidth - scrollDiv.clientWidth;
 			document.body.removeChild(scrollDiv);
@@ -73,23 +77,19 @@
 			const body = document.body;
 			const html = document.documentElement;
 
-			this.originalStyles.set('body-overflow', body.style.overflow);
-			this.originalStyles.set('body-paddingRight', body.style.paddingRight);
-			this.originalStyles.set('html-overflow', html.style.overflow);
+			// Сохраняем оригинальные стили
+			body.dataset.originalOverflow = body.style.overflow;
+			body.dataset.originalPaddingRight = body.style.paddingRight;
 
+			// Устанавливаем CSS переменную для компенсации
 			html.style.setProperty('--lm-scrollbar-width', `${scrollbarWidth}px`);
 			html.classList.add('lm-scroll-locked');
-			body.classList.add('lm-scroll-locked', 'lm-scroll-locked-body');
+			body.classList.add('lm-scroll-locked-body');
 
+			// Компенсируем ширину скроллбара
 			if (scrollbarWidth > 0) {
-				// Не устанавливаем paddingRight напрямую - CSS сделает это через переменную
-				const fixedElements = $$('[style*="position: fixed"], .fixed-header, .fixed-sidebar');
-				fixedElements.forEach(el => {
-					el.setAttribute('data-lm-fixed-compensated', 'true');
-				});
+				body.style.paddingRight = `${scrollbarWidth}px`;
 			}
-
-			console.log(`🔒 Scroll locked, scrollbar width: ${scrollbarWidth}px`);
 		},
 
 		unlock() {
@@ -99,32 +99,27 @@
 			const body = document.body;
 			const html = document.documentElement;
 
-			body.style.overflow = this.originalStyles.get('body-overflow') || '';
-			body.style.paddingRight = this.originalStyles.get('body-paddingRight') || '';
-			html.style.overflow = this.originalStyles.get('html-overflow') || '';
+			// Восстанавливаем оригинальные стили
+			body.style.overflow = body.dataset.originalOverflow || '';
+			body.style.paddingRight = body.dataset.originalPaddingRight || '';
+
+			delete body.dataset.originalOverflow;
+			delete body.dataset.originalPaddingRight;
 
 			html.classList.remove('lm-scroll-locked');
-			body.classList.remove('lm-scroll-locked', 'lm-scroll-locked-body');
+			body.classList.remove('lm-scroll-locked-body');
 			html.style.removeProperty('--lm-scrollbar-width');
-
-			const compensatedElements = $$('[data-lm-fixed-compensated="true"]');
-			compensatedElements.forEach(el => {
-				el.removeAttribute('data-lm-fixed-compensated');
-			});
-
-			this.originalStyles.clear();
-			console.log('🔓 Scroll unlocked');
 		}
 	};
 
-	// Focus management
-	let previousFocus = null;
-	const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
+	// Focus trap
 	const trapFocus = (container) => {
-		const focusable = $$(focusableElements, container);
-		const firstFocusable = focusable[0];
-		const lastFocusable = focusable[focusable.length - 1];
+		const focusableElements = container.querySelectorAll(
+			'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+		);
+
+		const firstFocusable = focusableElements[0];
+		const lastFocusable = focusableElements[focusableElements.length - 1];
 
 		const handleTabKey = (e) => {
 			if (e.key !== 'Tab') return;
@@ -143,204 +138,214 @@
 		};
 
 		container.addEventListener('keydown', handleTabKey);
+		firstFocusable?.focus();
+
 		return () => container.removeEventListener('keydown', handleTabKey);
 	};
 
+	// ============================= //
+	// ГЛАВНЫЙ КЛАСС
+	// ============================= //
+
 	class LightModal {
-		static current = null;
+		static instances = new Map();
+		static instanceCounter = 0;
+		static currentInstance = null;
+
 		static defaults = {
+			// Основные настройки
 			mainClass: '',
-			backdrop: true,
-			backdropClick: true,
-			keyboard: true,
-			focus: true,
-			compact: false,
-			autoFocus: true,
-			restoreFocus: true,
-			dragToClose: true,
-			touch: true,
-			modal: true,
-			width: null,
-			height: null,
+			theme: 'dark', // 'dark' | 'light' | 'auto'
+
+			// Управление
+			closeButton: true,
+			closeOnBackdrop: true,
+			closeOnEsc: true,
+			closeExisting: false,
+
+			// Эффекты
+			fadeEffect: true,
+			zoomEffect: true,
 			openSpeed: 366,
 			closeSpeed: 366,
-			closeBtn: true,
-			autoPlay: true,
-			iframe: {
-				scrolling: 'auto',
-				preload: true
-			},
-			ajax: {
-				dataType: 'html',
-				headers: {}
-			},
-			keys: {
-				close: [27] // escape
-			}
+
+			// Функциональность
+			dragToClose: true,
+			touch: true,
+			keyboard: true,
+			autoFocus: true,
+			restoreFocus: true,
+			hideScrollbar: true,
+
+			// Idle режим
+			idle: 3000,
+
+			// Контент
+			spinnerTpl: '<div class="lm-spinner"></div>',
+			errorTpl: '<div class="lm-error">Ошибка загрузки</div>',
+			closeBtnTpl: '<button class="lm-close-btn" type="button" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>',
+
+			// Размеры
+			width: null,
+			height: null,
+
+			// Callbacks
+			on: {}
 		};
 
-		// Auto-binding
-		static bind(selector = '[data-lightmodal]') {
-			document.addEventListener('click', e => {
-				const trigger = e.target.closest(selector);
-				if (!trigger) return;
-				e.preventDefault();
-				this.openFromTrigger(trigger);
-			});
-		}
+		constructor(items, options = {}) {
+			// Нормализация входных данных
+			if (!Array.isArray(items)) {
+				items = [items];
+			}
 
-		static openFromTrigger(trigger) {
-			const src = trigger.getAttribute('href') || trigger.dataset.src;
-			if (!src) return;
-
-			const item = {
-				src,
-				type: trigger.dataset.type,
-				caption: trigger.dataset.caption || trigger.getAttribute('title'),
-				alt: trigger.dataset.alt,
-				triggerEl: trigger
-			};
-
-			// Parse data attributes as options
-			const options = { ...this.defaults };
-			Object.keys(trigger.dataset).forEach(key => {
-				if (key.startsWith('lm')) {
-					const optionKey = key.replace(/^lm([A-Z])/, (_, letter) => letter.toLowerCase())
-						.replace(/^lm/, '').toLowerCase();
-					const value = trigger.dataset[key];
-
-					if (value === 'true') options[optionKey] = true;
-					else if (value === 'false') options[optionKey] = false;
-					else if (!isNaN(value)) options[optionKey] = +value;
-					else options[optionKey] = value;
+			this.items = items.map(item => {
+				if (typeof item === 'string') {
+					return { src: item };
 				}
+				return item;
 			});
 
-			new LightModal(item, options);
-		}
+			this.options = merge({}, LightModal.defaults, options);
+			this.state = States.Init;
+			this.id = `lm-${++LightModal.instanceCounter}`;
 
-		static open(item, options = {}) {
-			return new LightModal(item, options);
-		}
+			// Текущий индекс
+			this.currentIndex = this.options.startIndex || 0;
 
-		static close() {
-			if (LightModal.current) {
-				LightModal.current.close();
-			}
-		}
+			// DOM элементы
+			this.container = null;
+			this.backdrop = null;
+			this.contentWrapper = null;
+			this.content = null;
+			this.closeBtn = null;
 
-		constructor(item, options = {}) {
-			// Normalize item
-			if (typeof item === 'string') {
-				item = { src: item };
-			}
-
-			this.item = item;
-			this.options = { ...LightModal.defaults, ...options };
-			this.isOpen = false;
-			this.isClosing = false;
+			// Состояние
+			this.isIdle = false;
+			this.idleTimer = null;
+			this.previousFocus = null;
 			this.removeFocusTrap = null;
-			this.animationTimer = null;
 
-			// Touch/swipe properties
+			// Touch/drag
 			this.isDragging = false;
 			this.dragStartY = 0;
-			this.dragCurrentY = 0;
-			this.dragStartTime = 0;
-			this.dragThreshold = 50;
-			this.velocityThreshold = 0.3;
+			this.dragOffset = 0;
 
+			// События
+			this.events = new Map();
+
+			// Инициализация
+			this.init();
+		}
+
+		init() {
+			// Закрываем существующие модалки если нужно
+			if (this.options.closeExisting) {
+				LightModal.closeAll();
+			}
+
+			// Сохраняем инстанс
+			LightModal.instances.set(this.id, this);
+			LightModal.currentInstance = this;
+
+			// Создаём DOM
 			this.createDOM();
-			this.attachEvents();
-			this.renderContent().then(() => this.show());
 
-			LightModal.current = this;
+			// Загружаем контент
+			this.loadContent(this.items[this.currentIndex]);
+
+			// Открываем
+			this.open();
+
+			// Emit init event
+			this.emit('init');
 		}
 
 		createDOM() {
-			// Use native dialog if supported
-			this.useDialog = ('HTMLDialogElement' in window) && this.options.modal !== false;
+			// Используем dialog если поддерживается
+			const useDialog = 'HTMLDialogElement' in window;
 
-			this.container = this.useDialog
-				? document.createElement('dialog')
-				: h('div');
-
+			// Создаём контейнер
+			this.container = useDialog ? document.createElement('dialog') : h('div');
 			this.container.className = 'lm-container';
+			this.container.setAttribute('id', this.id);
 			this.container.setAttribute('role', 'dialog');
 			this.container.setAttribute('aria-modal', 'true');
-			// ИСПРАВЛЕНИЕ: НЕ устанавливаем aria-hidden при создании
-			// this.container.setAttribute('aria-hidden', 'true');
 
-			// Create backdrop
+			// Применяем тему
+			const theme = this.options.theme;
+			if (theme === 'auto') {
+				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				this.container.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+			} else {
+				this.container.setAttribute('data-theme', theme);
+			}
+
+			// Backdrop
 			this.backdrop = h('div', 'lm-backdrop');
 
-			// Create content wrapper
+			// Content wrapper
 			this.contentWrapper = h('div', 'lm-content-wrapper');
 
-			// Create drag indicator for touch devices
+			// Drag indicator для touch устройств
 			if (isTouchDevice() && this.options.dragToClose) {
-				this.dragIndicator = h('div', 'lm-drag-indicator');
-				this.contentWrapper.appendChild(this.dragIndicator);
+				const dragIndicator = h('div', 'lm-drag-indicator');
+				this.contentWrapper.appendChild(dragIndicator);
 				this.container.classList.add('is-touch');
 			}
 
-			// Create close button
-			if (this.options.closeBtn) {
-				this.closeBtn = h('button', 'lm-close-btn');
-				this.closeBtn.setAttribute('type', 'button');
-				this.closeBtn.setAttribute('aria-label', 'Закрыть');
-				this.closeBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+			// Close button
+			if (this.options.closeButton) {
+				const closeBtnHtml = this.options.closeBtnTpl;
+				const tempDiv = h('div');
+				tempDiv.innerHTML = closeBtnHtml;
+				this.closeBtn = tempDiv.firstChild;
 				this.contentWrapper.appendChild(this.closeBtn);
 			}
 
-			// Create content container
+			// Content
 			this.content = h('div', 'lm-content');
-			this.content.setAttribute('id', 'lm-content');
 			this.contentWrapper.appendChild(this.content);
 
-			// Create caption container if needed
-			if (this.item.caption) {
-				this.caption = h('div', 'lm-caption');
-				this.caption.textContent = this.item.caption;
-				this.contentWrapper.appendChild(this.caption);
-			}
-
-			// Assemble DOM
+			// Собираем структуру
 			this.container.appendChild(this.backdrop);
 			this.container.appendChild(this.contentWrapper);
 
-			// Apply custom classes
+			// Добавляем пользовательские классы
 			if (this.options.mainClass) {
 				this.container.classList.add(this.options.mainClass);
 			}
 
-			if (this.options.compact) {
-				this.container.classList.add('is-compact');
-			}
-
-			if (isMobile() && this.options.touch) {
+			// Мобильные стили
+			if (isMobile()) {
 				this.container.classList.add('is-mobile-bottom');
 			}
 
-			// Apply custom dimensions
+			// Применяем размеры если указаны
 			if (this.options.width) {
-				this.contentWrapper.style.width = typeof this.options.width === 'number'
-					? `${this.options.width}px` : this.options.width;
+				this.contentWrapper.style.maxWidth =
+					typeof this.options.width === 'number'
+						? `${this.options.width}px`
+						: this.options.width;
 			}
+
 			if (this.options.height) {
-				this.contentWrapper.style.height = typeof this.options.height === 'number'
-					? `${this.options.height}px` : this.options.height;
+				this.contentWrapper.style.maxHeight =
+					typeof this.options.height === 'number'
+						? `${this.options.height}px`
+						: this.options.height;
 			}
 
-			// ИСПРАВЛЕНИЕ: Устанавливаем CSS переменную для анимации
-			this.container.style.setProperty('--lm-duration', `${this.options.openSpeed}ms`);
-
+			// Добавляем в DOM
 			document.body.appendChild(this.container);
+
+			// Присоединяем события
+			this.attachEvents();
 		}
 
 		attachEvents() {
 			// Backdrop click
-			if (this.options.backdropClick) {
+			if (this.options.closeOnBackdrop) {
 				this.backdrop.addEventListener('click', () => this.close());
 			}
 
@@ -349,246 +354,249 @@
 				this.closeBtn.addEventListener('click', () => this.close());
 			}
 
-			// Keyboard events
+			// Keyboard
 			if (this.options.keyboard) {
 				this._keydownHandler = this.handleKeydown.bind(this);
 				document.addEventListener('keydown', this._keydownHandler);
 			}
 
-			// Touch events для swipe
-			if (this.options.touch && isTouchDevice() && this.options.dragToClose) {
-				this.setupSwipeToClose();
-			}
-
 			// Dialog events
-			if (this.useDialog) {
-				this.container.addEventListener('close', () => {
-					if (!this.isClosing) this.close();
-				});
+			if (this.container instanceof HTMLDialogElement) {
 				this.container.addEventListener('cancel', (e) => {
 					e.preventDefault();
-					this.close();
-				});
-				// Закрытие по клику на backdrop для dialog
-				this.container.addEventListener('click', (e) => {
-					if (e.target === this.container && this.options.backdropClick) {
+					if (this.options.closeOnEsc) {
 						this.close();
 					}
 				});
+			}
+
+			// Touch events
+			if (this.options.touch && this.options.dragToClose && isTouchDevice()) {
+				this.setupDragToClose();
+			}
+
+			// Idle mode
+			if (this.options.idle) {
+				this.setupIdleMode();
 			}
 		}
 
 		handleKeydown(e) {
-			if (!this.isOpen) return;
+			if (this.state !== States.Ready) return;
 
-			if (this.options.keys.close.includes(e.keyCode)) {
+			if (e.key === 'Escape' && this.options.closeOnEsc) {
 				e.preventDefault();
 				this.close();
 			}
-		}
 
-		setupSwipeToClose() {
-			const touchTarget = this.contentWrapper;
-
-			const handleTouchStart = (e) => {
-				if (this.isDragging) return;
-
-				this.isDragging = false;
-				this.dragStartY = e.touches[0].clientY;
-				this.dragCurrentY = this.dragStartY;
-				this.dragStartTime = Date.now();
-
-				touchTarget.classList.add('is-draggable');
-			};
-
-			const handleTouchMove = (e) => {
-				if (!this.dragStartY) return;
-
-				this.dragCurrentY = e.touches[0].clientY;
-				const deltaY = this.dragCurrentY - this.dragStartY;
-				const absDeltaY = Math.abs(deltaY);
-
-				if (absDeltaY > 10 && !this.isDragging) {
-					this.isDragging = true;
-				}
-
-				if (this.isDragging) {
-					const progress = Math.min(absDeltaY / 200, 1);
-
-					if (deltaY > 0) {
-						// Используем CSS переменные для анимации drag
-						touchTarget.style.setProperty('--lm-drag-offset', `${deltaY}px`);
-						touchTarget.style.setProperty('--lm-drag-opacity', 1 - (progress * 0.3));
-						this.backdrop.style.opacity = 1 - (progress * 0.5);
-					}
-
+			// Navigation для галереи
+			if (this.items.length > 1) {
+				if (e.key === 'ArrowLeft') {
 					e.preventDefault();
+					this.prev();
+				} else if (e.key === 'ArrowRight') {
+					e.preventDefault();
+					this.next();
 				}
-			};
-
-			const handleTouchEnd = (e) => {
-				if (!this.dragStartY) return;
-
-				const deltaY = this.dragCurrentY - this.dragStartY;
-				const deltaTime = Date.now() - this.dragStartTime;
-				const velocity = Math.abs(deltaY) / (deltaTime || 1);
-
-				touchTarget.classList.remove('is-draggable');
-
-				if (this.isDragging) {
-					if ((deltaY > this.dragThreshold) || (velocity > this.velocityThreshold && deltaY > 20)) {
-						this.close();
-					} else {
-						// Сбрасываем CSS переменные
-						touchTarget.style.removeProperty('--lm-drag-offset');
-						touchTarget.style.removeProperty('--lm-drag-opacity');
-						this.backdrop.style.opacity = '';
-					}
-				}
-
-				this.isDragging = false;
-				this.dragStartY = 0;
-				this.dragCurrentY = 0;
-				this.dragStartTime = 0;
-			};
-
-			touchTarget.addEventListener('touchstart', handleTouchStart, { passive: true });
-			touchTarget.addEventListener('touchmove', handleTouchMove, { passive: false });
-			touchTarget.addEventListener('touchend', handleTouchEnd, { passive: true });
-			touchTarget.addEventListener('touchcancel', handleTouchEnd, { passive: true });
-
-			this._touchStartHandler = handleTouchStart;
-			this._touchMoveHandler = handleTouchMove;
-			this._touchEndHandler = handleTouchEnd;
+			}
 		}
 
-		async renderContent() {
-			const { src, type } = this.item;
+		setupDragToClose() {
+			let startY = 0;
+			let currentY = 0;
+			let isDragging = false;
 
-			// Show loading spinner
+			const handleStart = (e) => {
+				startY = e.touches[0].clientY;
+				isDragging = false;
+			};
+
+			const handleMove = (e) => {
+				if (!startY) return;
+
+				currentY = e.touches[0].clientY;
+				const deltaY = currentY - startY;
+
+				if (Math.abs(deltaY) > 10 && !isDragging) {
+					isDragging = true;
+					this.contentWrapper.classList.add('is-dragging');
+				}
+
+				if (isDragging && deltaY > 0) {
+					const progress = Math.min(deltaY / 200, 1);
+					this.contentWrapper.style.transform = `translateY(${deltaY}px)`;
+					this.contentWrapper.style.opacity = 1 - progress * 0.3;
+					this.backdrop.style.opacity = 1 - progress * 0.5;
+				}
+			};
+
+			const handleEnd = () => {
+				if (!isDragging) return;
+
+				const deltaY = currentY - startY;
+
+				this.contentWrapper.classList.remove('is-dragging');
+
+				if (deltaY > 100) {
+					this.close();
+				} else {
+					this.contentWrapper.style.transform = '';
+					this.contentWrapper.style.opacity = '';
+					this.backdrop.style.opacity = '';
+				}
+
+				startY = 0;
+				currentY = 0;
+				isDragging = false;
+			};
+
+			this.contentWrapper.addEventListener('touchstart', handleStart, { passive: true });
+			this.contentWrapper.addEventListener('touchmove', handleMove, { passive: true });
+			this.contentWrapper.addEventListener('touchend', handleEnd, { passive: true });
+			this.contentWrapper.addEventListener('touchcancel', handleEnd, { passive: true });
+		}
+
+		setupIdleMode() {
+			const resetIdle = () => {
+				if (this.idleTimer) {
+					clearTimeout(this.idleTimer);
+				}
+
+				if (this.isIdle) {
+					this.isIdle = false;
+					this.container.classList.remove('is-idle');
+				}
+
+				this.idleTimer = setTimeout(() => {
+					this.isIdle = true;
+					this.container.classList.add('is-idle');
+				}, this.options.idle);
+			};
+
+			document.addEventListener('mousemove', resetIdle);
+			resetIdle();
+
+			// Cleanup
+			this._idleCleanup = () => {
+				document.removeEventListener('mousemove', resetIdle);
+				if (this.idleTimer) {
+					clearTimeout(this.idleTimer);
+				}
+			};
+		}
+
+		async loadContent(item) {
+			const { src, type } = item;
+
+			// Показываем спиннер
 			this.showLoader();
 
 			try {
-				// Handle inline content
+				// Inline content
 				if (src.startsWith('#')) {
 					const element = document.querySelector(src);
 					if (element) {
 						const clone = element.cloneNode(true);
 						clone.style.display = 'block';
-						clone.style.visibility = 'visible';
 						clone.classList.remove('inline-content');
-						clone.removeAttribute('hidden');
-
-						const hiddenChildren = clone.querySelectorAll('.inline-content, [hidden]');
-						hiddenChildren.forEach(child => {
-							child.style.display = 'block';
-							child.style.visibility = 'visible';
-							child.classList.remove('inline-content');
-							child.removeAttribute('hidden');
-						});
-
-						this.hideLoader();
-						this.content.appendChild(clone);
+						this.setContent(clone);
 						this.content.classList.add('has-inline-content');
-						return;
 					} else {
 						throw new Error(`Element ${src} not found`);
 					}
-				}
-
-				// Handle AJAX content
-				if (type === 'ajax') {
-					try {
-						const response = await fetch(src, {
-							credentials: 'same-origin',
-							...this.options.ajax
-						});
-						if (!response.ok) throw new Error(`HTTP ${response.status}`);
-						const content = await response.text();
-						this.hideLoader();
-						this.content.innerHTML = content;
-						this.content.classList.add('has-inline-content');
-					} catch (error) {
-						this.hideLoader();
-						this.content.innerHTML = `<p style="color: red;">Ошибка загрузки: ${error.message}</p>`;
-						this.content.classList.add('has-inline-content');
-					}
 					return;
 				}
 
-				// Handle images
+				// Images
 				if (isImg(type, src)) {
 					const img = new Image();
-					img.onload = () => {
-						this.hideLoader();
-						this.content.appendChild(img);
-						this.updateSize();
-					};
-					img.onerror = () => {
-						this.hideLoader();
-						this.content.innerHTML = `<p style="color: red;">Ошибка загрузки изображения: ${src}</p>`;
-						this.content.classList.add('has-inline-content');
-					};
-					img.src = src;
-					img.alt = this.item.alt || this.item.caption || '';
+
+					await new Promise((resolve, reject) => {
+						img.onload = resolve;
+						img.onerror = reject;
+						img.src = src;
+					});
+
+					img.alt = item.alt || item.caption || '';
+					this.setContent(img);
 					return;
 				}
 
-				// Handle videos and video services
-				if (isVideo(type, src) || ytId(src) || vmId(src) || ruId(src) || isVk(src)) {
-					this.hideLoader();
+				// YouTube
+				const youtubeId = getYouTubeId(src);
+				if (youtubeId) {
+					const iframe = this.createIframe(
+						`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`
+					);
+					this.setContent(iframe);
 					this.content.classList.add('has-iframe');
-
-					if (isVideo(type, src)) {
-						const video = h('video');
-						video.src = src;
-						video.controls = true;
-						video.playsInline = true;
-						if (this.options.autoPlay) {
-							video.autoplay = true;
-							video.muted = true;
-						}
-						this.content.appendChild(video);
-						return;
-					}
-
-					// Handle YouTube
-					if (ytId(src)) {
-						return this.createIframe(`https://www.youtube.com/embed/${ytId(src)}?autoplay=${this.options.autoPlay ? 1 : 0}&rel=0`);
-					}
-
-					// Handle Vimeo
-					if (vmId(src)) {
-						return this.createIframe(`https://player.vimeo.com/video/${vmId(src)}?autoplay=${this.options.autoPlay ? 1 : 0}&title=0&byline=0`);
-					}
-
-					// Handle RuTube
-					if (ruId(src)) {
-						return this.createIframe(`https://rutube.ru/play/embed/${ruId(src)}?autoplay=${this.options.autoPlay ? 1 : 0}`);
-					}
-
-					// Handle VK
-					if (isVk(src)) {
-						const separator = src.includes('?') ? '&' : '?';
-						return this.createIframe(`${src}${separator}autoplay=${this.options.autoPlay ? 1 : 0}`);
-					}
+					return;
 				}
 
-				// Handle generic iframe content
-				this.hideLoader();
+				// Vimeo
+				const vimeoId = getVimeoId(src);
+				if (vimeoId) {
+					const iframe = this.createIframe(
+						`https://player.vimeo.com/video/${vimeoId}?autoplay=1`
+					);
+					this.setContent(iframe);
+					this.content.classList.add('has-iframe');
+					return;
+				}
+
+				// Video
+				if (isVideo(type, src)) {
+					const video = h('video');
+					video.src = src;
+					video.controls = true;
+					video.autoplay = true;
+					video.muted = true;
+					this.setContent(video);
+					return;
+				}
+
+				// Generic iframe
+				const iframe = this.createIframe(src);
+				this.setContent(iframe);
 				this.content.classList.add('has-iframe');
-				this.createIframe(src);
 
 			} catch (error) {
-				this.hideLoader();
-				this.content.innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
-				this.content.classList.add('has-inline-content');
+				this.showError(error.message);
 			}
+		}
+
+		createIframe(src) {
+			const iframe = h('iframe');
+			iframe.src = src;
+			iframe.allowFullscreen = true;
+			iframe.frameBorder = '0';
+			iframe.style.width = '100%';
+			iframe.style.height = '100%';
+			return iframe;
+		}
+
+		setContent(element) {
+			this.hideLoader();
+			this.content.innerHTML = '';
+			this.content.appendChild(element);
+
+			// Caption
+			const item = this.items[this.currentIndex];
+			if (item.caption) {
+				const caption = h('div', 'lm-caption');
+				caption.textContent = item.caption;
+				this.contentWrapper.appendChild(caption);
+			}
+
+			this.emit('contentReady', item);
 		}
 
 		showLoader() {
 			if (!this.loader) {
-				this.loader = h('div', 'lm-spinner');
+				const template = this.options.spinnerTpl;
+				const tempDiv = h('div');
+				tempDiv.innerHTML = template;
+				this.loader = tempDiv.firstChild;
 				this.content.appendChild(this.loader);
 			}
 		}
@@ -600,146 +608,82 @@
 			}
 		}
 
-		createIframe(url) {
-			const iframe = h('iframe');
-			iframe.src = url;
-			iframe.allowFullscreen = true;
-			iframe.frameBorder = '0';
-			iframe.scrolling = this.options.iframe.scrolling;
-			iframe.style.width = '100%';
-			iframe.style.height = '100%';
-
-			this.content.appendChild(iframe);
+		showError(message) {
+			this.hideLoader();
+			const errorDiv = h('div');
+			errorDiv.innerHTML = this.options.errorTpl.replace('Ошибка загрузки', message);
+			this.content.appendChild(errorDiv.firstChild);
 		}
 
-		updateSize() {
-			// Auto-size logic if needed
-		}
+		open() {
+			if (this.state !== States.Init) return;
 
-		show() {
-			if (this.isOpen) return;
-
-			// Store previous focus
+			// Сохраняем фокус
 			if (this.options.restoreFocus) {
-				previousFocus = document.activeElement;
+				this.previousFocus = document.activeElement;
 			}
 
-			// Lock scroll ПЕРЕД показом модалки
-			scrollLock.lock();
-
-			this.isOpen = true;
-
-			if (this.useDialog) {
-				try {
-					this.container.showModal();
-				} catch (e) {
-					this.container.setAttribute('open', '');
-				}
+			// Блокируем скролл
+			if (this.options.hideScrollbar) {
+				scrollLock.lock();
 			}
 
-			// ИСПРАВЛЕНИЕ: правильная последовательность для анимации
-			// Сначала показываем контейнер
-			this.container.style.display = 'flex';
+			// Открываем dialog или показываем контейнер
+			if (this.container instanceof HTMLDialogElement) {
+				this.container.showModal();
+			} else {
+				this.container.style.display = 'flex';
+			}
 
-			// Затем через requestAnimationFrame добавляем класс для анимации
+			// Запускаем анимацию открытия
 			requestAnimationFrame(() => {
 				this.container.classList.add('is-open');
-				// Убираем aria-hidden только после начала анимации
-				this.container.removeAttribute('aria-hidden');
+
+				// Focus trap
+				if (this.options.autoFocus) {
+					this.removeFocusTrap = trapFocus(this.container);
+				}
 			});
 
-			// Set up focus management
-			if (this.options.focus) {
-				this.removeFocusTrap = trapFocus(this.container);
-
-				if (this.options.autoFocus) {
-					setTimeout(() => {
-						const focusTarget = $(focusableElements, this.content) || this.closeBtn;
-						focusTarget?.focus();
-					}, 150);
-				}
-			}
-
-			// Announce to screen readers
-			announce('Модальное окно открыто');
-
-			// Trigger custom event
-			this.container.dispatchEvent(new CustomEvent('lightmodal:show', {
-				detail: { instance: this, item: this.item }
-			}));
+			this.state = States.Ready;
+			this.emit('open');
 		}
 
 		close() {
-			if (!this.isOpen || this.isClosing) return;
+			if (this.state === States.Closing || this.state === States.Destroyed) return;
 
-			console.log('🚪 Starting close animation...');
+			this.state = States.Closing;
 
-			this.isClosing = true;
-			this.isOpen = false;
-
-			// Clear animation timer
-			if (this.animationTimer) {
-				clearTimeout(this.animationTimer);
-				this.animationTimer = null;
-			}
-
-			// Update CSS variable for close animation
-			this.container.style.setProperty('--lm-duration', `${this.options.closeSpeed}ms`);
-
-			// Start closing animation
+			// Убираем классы
 			this.container.classList.remove('is-open');
 			this.container.classList.add('is-closing');
+
+			// Ждём окончания анимации
+			const duration = this.options.closeSpeed;
+
+			setTimeout(() => {
+				this.destroy();
+			}, duration);
+
+			this.emit('close');
+		}
+
+		destroy() {
+			if (this.state === States.Destroyed) return;
+
+			// Cleanup idle mode
+			if (this._idleCleanup) {
+				this._idleCleanup();
+			}
 
 			// Remove focus trap
 			if (this.removeFocusTrap) {
 				this.removeFocusTrap();
-				this.removeFocusTrap = null;
 			}
 
 			// Restore focus
-			if (this.options.restoreFocus && previousFocus) {
-				previousFocus.focus();
-				previousFocus = null;
-			}
-
-			// Get animation duration
-			const animationDuration = this.options.closeSpeed || 366;
-
-			console.log('⏱️ Animation duration:', animationDuration + 'ms');
-
-			// Wait for animation to complete
-			this.animationTimer = setTimeout(() => {
-				console.log('✅ Animation complete, cleaning up...');
-				this.cleanupDOM();
-			}, animationDuration);
-
-			// Unlock scroll after animation
-			setTimeout(() => {
-				scrollLock.unlock();
-			}, animationDuration + 50);
-
-			// Announce to screen readers
-			announce('Модальное окно закрыто');
-		}
-
-		cleanupDOM() {
-			console.log('🧹 Cleaning up DOM...');
-
-			// Set aria-hidden before removing
-			this.container.setAttribute('aria-hidden', 'true');
-
-			// Handle dialog closing
-			if (this.useDialog) {
-				try {
-					this.container.close();
-				} catch (e) {
-					console.warn('Dialog close failed:', e);
-				}
-			}
-
-			// Remove from DOM
-			if (this.container.parentNode) {
-				this.container.parentNode.removeChild(this.container);
+			if (this.options.restoreFocus && this.previousFocus) {
+				this.previousFocus.focus();
 			}
 
 			// Remove event listeners
@@ -747,73 +691,194 @@
 				document.removeEventListener('keydown', this._keydownHandler);
 			}
 
-			// Remove touch event listeners
-			if (this._touchStartHandler && this.contentWrapper) {
-				this.contentWrapper.removeEventListener('touchstart', this._touchStartHandler);
-				this.contentWrapper.removeEventListener('touchmove', this._touchMoveHandler);
-				this.contentWrapper.removeEventListener('touchend', this._touchEndHandler);
-				this.contentWrapper.removeEventListener('touchcancel', this._touchEndHandler);
+			// Close dialog
+			if (this.container instanceof HTMLDialogElement) {
+				this.container.close();
 			}
 
-			// Clear current instance
-			if (LightModal.current === this) {
-				LightModal.current = null;
+			// Remove from DOM
+			this.container.remove();
+
+			// Unlock scroll
+			if (this.options.hideScrollbar) {
+				scrollLock.unlock();
 			}
 
-			// Reset closing state
-			this.isClosing = false;
+			// Clear instance
+			LightModal.instances.delete(this.id);
+			if (LightModal.currentInstance === this) {
+				LightModal.currentInstance = null;
+			}
 
-			// Trigger custom event
-			document.dispatchEvent(new CustomEvent('lightmodal:close', {
-				detail: { instance: this, item: this.item }
-			}));
+			this.state = States.Destroyed;
+			this.emit('destroy');
+		}
 
-			console.log('🎉 Modal fully closed and cleaned up');
+		// Navigation methods for gallery
+		next() {
+			if (this.currentIndex < this.items.length - 1) {
+				this.currentIndex++;
+				this.loadContent(this.items[this.currentIndex]);
+				this.emit('change', this.currentIndex);
+			}
+		}
+
+		prev() {
+			if (this.currentIndex > 0) {
+				this.currentIndex--;
+				this.loadContent(this.items[this.currentIndex]);
+				this.emit('change', this.currentIndex);
+			}
+		}
+
+		goTo(index) {
+			if (index >= 0 && index < this.items.length) {
+				this.currentIndex = index;
+				this.loadContent(this.items[this.currentIndex]);
+				this.emit('change', this.currentIndex);
+			}
+		}
+
+		// Event system
+		on(event, handler) {
+			if (!this.events.has(event)) {
+				this.events.set(event, []);
+			}
+			this.events.get(event).push(handler);
+			return this;
+		}
+
+		off(event, handler) {
+			const handlers = this.events.get(event);
+			if (handlers) {
+				const index = handlers.indexOf(handler);
+				if (index > -1) {
+					handlers.splice(index, 1);
+				}
+			}
+			return this;
+		}
+
+		emit(event, ...args) {
+			// User callbacks
+			if (this.options.on[event]) {
+				this.options.on[event](this, ...args);
+			}
+
+			// Registered handlers
+			const handlers = this.events.get(event);
+			if (handlers) {
+				handlers.forEach(handler => handler(this, ...args));
+			}
+		}
+
+		// Static methods
+		static open(items, options) {
+			return new LightModal(items, options);
+		}
+
+		static close() {
+			if (LightModal.currentInstance) {
+				LightModal.currentInstance.close();
+			}
+		}
+
+		static closeAll() {
+			for (const instance of LightModal.instances.values()) {
+				instance.close();
+			}
+		}
+
+		static getInstance(id) {
+			if (id) {
+				return LightModal.instances.get(id);
+			}
+			return LightModal.currentInstance;
+		}
+
+		// Auto-binding для data-атрибутов
+		static bind(selector = '[data-lightmodal]') {
+			document.addEventListener('click', (e) => {
+				const trigger = e.target.closest(selector);
+				if (!trigger) return;
+
+				e.preventDefault();
+
+				// Собираем все элементы галереи если есть data-gallery
+				const galleryName = trigger.dataset.gallery;
+				let items = [];
+				let startIndex = 0;
+
+				if (galleryName) {
+					const galleryItems = document.querySelectorAll(`[data-gallery="${galleryName}"]`);
+					galleryItems.forEach((item, index) => {
+						if (item === trigger) {
+							startIndex = index;
+						}
+						items.push({
+							src: item.getAttribute('href') || item.dataset.src,
+							type: item.dataset.type,
+							caption: item.dataset.caption || item.getAttribute('title'),
+							alt: item.dataset.alt
+						});
+					});
+				} else {
+					items = [{
+						src: trigger.getAttribute('href') || trigger.dataset.src,
+						type: trigger.dataset.type,
+						caption: trigger.dataset.caption || trigger.getAttribute('title'),
+						alt: trigger.dataset.alt
+					}];
+				}
+
+				// Парсим опции из data-атрибутов
+				const options = { startIndex };
+
+				for (const key in trigger.dataset) {
+					if (key.startsWith('lm')) {
+						const optionKey = key.replace(/^lm/, '').toLowerCase();
+						let value = trigger.dataset[key];
+
+						// Преобразуем типы
+						if (value === 'true') value = true;
+						else if (value === 'false') value = false;
+						else if (!isNaN(value)) value = +value;
+
+						options[optionKey] = value;
+					}
+				}
+
+				LightModal.open(items, options);
+			});
 		}
 	}
 
 	// ============================= //
-	// DEMO FUNCTIONS (simplified)
+	// ЭКСПОРТ И ИНИЦИАЛИЗАЦИЯ
 	// ============================= //
 
+	// Глобальный экспорт
+	window.LightModal = LightModal;
+
+	// Вспомогательные функции для обратной совместимости
 	window.openModal = function (contentId) {
-		LightModal.open(`#${contentId}`, { type: 'inline' });
+		LightModal.open(`#${contentId}`);
 	};
 
 	window.closeModal = function () {
 		LightModal.close();
 	};
 
-	window.openProgrammatically = () => {
-		LightModal.open({
-			src: '#inline-simple',
-			type: 'inline',
-			caption: 'Programmatically opened modal'
-		}, {
-			mainClass: 'lm-zoom-in'
-		});
-	};
-
-	// Global export
-	window.LightModal = LightModal;
-
-	// Auto-bind when DOM is ready
+	// Auto-bind при загрузке DOM
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', () => LightModal.bind());
 	} else {
 		LightModal.bind();
 	}
 
-	// Handle browser back/forward
-	window.addEventListener('popstate', () => {
-		if (LightModal.current && LightModal.current.item.src.startsWith('#')) {
-			LightModal.current.close();
-		}
-	});
+	// Версия
+	LightModal.version = '4.0.0';
 
-	// Debug info
-	console.log('🚀 LightModal 3.x initialized');
-	console.log('Dialog support:', 'HTMLDialogElement' in window ? '✅ Supported' : '❌ Not supported');
-	console.log('Touch device:', isTouchDevice() ? '✅ Yes' : '❌ No');
+	console.log('🚀 LightModal 4.0 initialized');
 
 })();
