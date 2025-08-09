@@ -1,6 +1,6 @@
 :root {
 	/* Backdrop */
-	--lm-backdrop-bg: rgba(24, 24, 27, .95);
+	--lm-backdrop-bg: rgba(24, 24, 27, 0.95);
 	--lm-backdrop-blur: 4px;
 
 	/* Animations */
@@ -72,23 +72,30 @@
 	}
 }
 
-/* Scroll lock */
+/* Scroll lock - как в Fancybox */
 html.lm-scroll-locked {
-	overflow: hidden;
-	scrollbar-gutter: stable;
+	width: auto;
+	overflow: visible;
+	scroll-behavior: auto;
+}
+
+html.lm-scroll-locked body {
+	touch-action: none;
 }
 
 html.lm-scroll-locked body.lm-scroll-locked-body {
+	width: auto;
 	overflow: hidden !important;
-	touch-action: none;
 	overscroll-behavior-y: none;
+	/* Компенсация как в Fancybox */
+	margin-right: calc(var(--lm-body-margin, 0px) + var(--lm-scrollbar-compensate, 0px)) !important;
 }
 
 /* Fixed elements compensation */
 html.lm-scroll-locked .fixed-header,
 html.lm-scroll-locked .fixed-sidebar,
 html.lm-scroll-locked [style*="position: fixed"] {
-	padding-right: var(--lm-scrollbar-width, 0px);
+	padding-right: var(--lm-scrollbar-compensate, 0px);
 }
 
 /* Main container */
@@ -165,6 +172,11 @@ dialog.lm-container.is-closing::backdrop {
 	transition: opacity var(--lm-duration) var(--lm-ease-out);
 }
 
+.lm-container.is-loading .lm-content-wrapper {
+	min-width: clamp(320px, 80vw, 1200px);
+	min-height: clamp(220px, 70vh, 800px);
+}
+
 /* Content wrapper */
 .lm-content-wrapper {
 	position: relative;
@@ -185,8 +197,62 @@ dialog.lm-container.is-closing::backdrop {
 }
 
 /* Draggable state */
+.lm-content-wrapper {
+	cursor: default;
+	transition: all var(--lm-duration) var(--lm-ease-in-out);
+}
+
+.lm-content-wrapper.is-draggable {
+	cursor: move;
+	cursor: grab;
+}
+
 .lm-content-wrapper.is-dragging {
-	transition: none;
+	transition: none !important;
+	cursor: grabbing !important;
+	user-select: none;
+}
+
+/* Prevent text selection during drag */
+.lm-container.is-open .lm-content-wrapper.is-dragging * {
+	user-select: none !important;
+	-webkit-user-select: none !important;
+	-moz-user-select: none !important;
+	-ms-user-select: none !important;
+}
+
+/* Throw out animations */
+.lm-content-wrapper.lm-throw-out-down {
+	animation: lmThrowOutDown 0.2s ease-out forwards;
+}
+
+.lm-content-wrapper.lm-throw-out-left {
+	animation: lmThrowOutLeft 0.2s ease-out forwards;
+}
+
+.lm-content-wrapper.lm-throw-out-right {
+	animation: lmThrowOutRight 0.2s ease-out forwards;
+}
+
+@keyframes lmThrowOutDown {
+	to {
+		transform: translateY(150%);
+		opacity: 0;
+	}
+}
+
+@keyframes lmThrowOutLeft {
+	to {
+		transform: translateX(-150%);
+		opacity: 0;
+	}
+}
+
+@keyframes lmThrowOutRight {
+	to {
+		transform: translateX(150%);
+		opacity: 0;
+	}
 }
 
 /* Open animation */
@@ -280,7 +346,7 @@ dialog.lm-container.is-closing .lm-content-wrapper {
 	padding: 0;
 	overflow: hidden;
 	overscroll-behavior: contain;
-	scrollbar-gutter: stable;
+	/* scrollbar-gutter: stable; */
 	flex: 1;
 	min-height: 0;
 	display: flex;
@@ -427,6 +493,11 @@ dialog.lm-container.is-closing .lm-content-wrapper {
 
 /* Mobile styles */
 @media (max-width: 768px) {
+	.lm-container.is-loading .lm-content-wrapper {
+		min-width: 100vw;
+		min-height: 60vh;
+	}
+
 	.lm-content-wrapper {
 		border-radius: 12px 12px 0 0;
 		max-height: 85vh;

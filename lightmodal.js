@@ -52,19 +52,20 @@
 		Destroyed: 3
 	};
 
-	// Scroll lock implementation
+	// Scroll lock implementation (улучшенная версия как в Fancybox)
 	const scrollLock = {
 		locked: false,
 		scrollbarWidth: 0,
+		originalMargin: 0,
 
 		getScrollbarWidth() {
-			if (this.scrollbarWidth) return this.scrollbarWidth;
+			// Кешируем значение
+			if (this.scrollbarWidth !== 0) return this.scrollbarWidth;
 
-			const scrollDiv = h('div');
-			scrollDiv.style.cssText = 'position:absolute;top:-9999px;width:50px;height:50px;overflow:scroll;';
-			document.body.appendChild(scrollDiv);
-			this.scrollbarWidth = scrollDiv.offsetWidth - scrollDiv.clientWidth;
-			document.body.removeChild(scrollDiv);
+			// Вычисляем реальную ширину скроллбара
+			const documentWidth = document.documentElement.clientWidth;
+			const windowWidth = window.innerWidth;
+			this.scrollbarWidth = Math.max(0, windowWidth - documentWidth);
 
 			return this.scrollbarWidth;
 		},
@@ -77,18 +78,20 @@
 			const body = document.body;
 			const html = document.documentElement;
 
-			// Сохраняем оригинальные стили
-			body.dataset.originalOverflow = body.style.overflow;
-			body.dataset.originalPaddingRight = body.style.paddingRight;
+			// Сохраняем оригинальный margin
+			this.originalMargin = parseFloat(window.getComputedStyle(body).marginRight) || 0;
 
-			// Устанавливаем CSS переменную для компенсации
-			html.style.setProperty('--lm-scrollbar-width', `${scrollbarWidth}px`);
+			// Устанавливаем CSS переменные как в Fancybox
+			html.style.setProperty('--lm-scrollbar-compensate', `${scrollbarWidth}px`);
+			html.style.setProperty('--lm-body-margin', `${this.originalMargin}px`);
+
+			// Добавляем классы
 			html.classList.add('lm-scroll-locked');
 			body.classList.add('lm-scroll-locked-body');
 
-			// Компенсируем ширину скроллбара
+			// Применяем компенсацию как в Fancybox
 			if (scrollbarWidth > 0) {
-				body.style.paddingRight = `${scrollbarWidth}px`;
+				body.style.marginRight = `calc(var(--lm-body-margin, 0px) + var(--lm-scrollbar-compensate, 0px))`;
 			}
 		},
 
@@ -100,15 +103,17 @@
 			const html = document.documentElement;
 
 			// Восстанавливаем оригинальные стили
-			body.style.overflow = body.dataset.originalOverflow || '';
-			body.style.paddingRight = body.dataset.originalPaddingRight || '';
+			body.style.marginRight = '';
 
-			delete body.dataset.originalOverflow;
-			delete body.dataset.originalPaddingRight;
-
+			// Убираем классы
 			html.classList.remove('lm-scroll-locked');
 			body.classList.remove('lm-scroll-locked-body');
-			html.style.removeProperty('--lm-scrollbar-width');
+
+			// Очищаем CSS переменные
+			html.style.removeProperty('--lm-scrollbar-compensate');
+			html.style.removeProperty('--lm-body-margin');
+
+			this.originalMargin = 0;
 		}
 	};
 
@@ -370,8 +375,8 @@
 				});
 			}
 
-			// Touch events
-			if (this.options.touch && this.options.dragToClose && isTouchDevice()) {
+			// Drag to close - работает и на touch, и на десктопе
+			if (this.options.dragToClose) {
 				this.setupDragToClose();
 			}
 
@@ -404,56 +409,196 @@
 		setupDragToClose() {
 			let startY = 0;
 			let currentY = 0;
+			let startX = 0;
+			let currentX = 0;
 			let isDragging = false;
+			let dragAxis = null;
+			let isMouseDown = false;
+
+			// Универсальная функция для получения координат
+			const getEventCoords = (e) => {
+				if (e.touches && e.touches[0]) {
+					return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+				} else if (e.changedTouches && e.changedTouches[0]) {
+					return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+				}
+				return { x: e.clientX, y: e.clientY };
+			};
 
 			const handleStart = (e) => {
-				startY = e.touches[0].clientY;
+				// Проверяем, что начали тянуть не с интерактивного элемента
+				const target = e.target;
+				if (target.closest('button, a, input, textarea, select, [contenteditable], iframe, video')) {
+					return;
+				}
+
+				const coords = getEventCoords(e);
+				startX = coords.x;
+				startY = coords.y;
+				currentX = startX;
+				currentY = startY;
 				isDragging = false;
+				dragAxis = null;
+
+				// Для mouse событий
+				if (e.type === 'mousedown') {
+					e.preventDefault();
+					isMouseDown = true;
+					this.contentWrapper.style.cursor = 'grabbing';
+				}
 			};
 
 			const handleMove = (e) => {
-				if (!startY) return;
+				// Для мыши проверяем что кнопка нажата
+				if (e.type === 'mousemove' && !isMouseDown) return;
+				if (!startY && !startX) return;
 
-				currentY = e.touches[0].clientY;
+				const coords = getEventCoords(e);
+				currentX = coords.x;
+				currentY = coords.y;
+
+				const deltaX = currentX - startX;
 				const deltaY = currentY - startY;
 
-				if (Math.abs(deltaY) > 10 && !isDragging) {
+				// Определяем направление драга
+				if (!isDragging && (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10)) {
 					isDragging = true;
+					dragAxis = Math.abs(deltaX) > Math.abs(deltaY) ? 'x' : 'y';
 					this.contentWrapper.classList.add('is-dragging');
+
+					// Предотвращаем выделение текста при драге мышью
+					if (e.type === 'mousemove') {
+						e.preventDefault();
+						document.body.style.userSelect = 'none';
+					}
 				}
 
-				if (isDragging && deltaY > 0) {
-					const progress = Math.min(deltaY / 200, 1);
-					this.contentWrapper.style.transform = `translateY(${deltaY}px)`;
-					this.contentWrapper.style.opacity = 1 - progress * 0.3;
-					this.backdrop.style.opacity = 1 - progress * 0.5;
+				if (isDragging) {
+					let transform = '';
+					let opacity = 1;
+					let backdropOpacity = 1;
+
+					// Вертикальный драг (вниз для закрытия)
+					if (dragAxis === 'y' && deltaY > 0) {
+						const progress = Math.min(deltaY / 200, 1);
+						transform = `translateY(${deltaY}px)`;
+						opacity = 1 - progress * 0.3;
+						backdropOpacity = 1 - progress * 0.5;
+					}
+					// Горизонтальный драг (в любую сторону для закрытия)
+					else if (dragAxis === 'x') {
+						const progress = Math.min(Math.abs(deltaX) / 200, 1);
+						transform = `translateX(${deltaX}px) scale(${1 - progress * 0.1})`;
+						opacity = 1 - progress * 0.3;
+						backdropOpacity = 1 - progress * 0.5;
+					}
+
+					this.contentWrapper.style.transform = transform;
+					this.contentWrapper.style.opacity = opacity;
+					this.backdrop.style.opacity = backdropOpacity;
 				}
 			};
 
-			const handleEnd = () => {
-				if (!isDragging) return;
+			const handleEnd = (e) => {
+				// Для мыши проверяем что была нажата
+				if ((e.type === 'mouseup' || e.type === 'mouseleave') && !isMouseDown) return;
 
+				isMouseDown = false;
+				this.contentWrapper.style.cursor = '';
+				document.body.style.userSelect = '';
+
+				if (!isDragging) {
+					this.contentWrapper.classList.remove('is-draggable');
+					startX = 0;
+					startY = 0;
+					currentX = 0;
+					currentY = 0;
+					return;
+				}
+
+				const deltaX = currentX - startX;
 				const deltaY = currentY - startY;
 
 				this.contentWrapper.classList.remove('is-dragging');
+				this.contentWrapper.classList.remove('is-draggable');
 
-				if (deltaY > 100) {
-					this.close();
+				// Проверяем условия для закрытия
+				const shouldClose =
+					(dragAxis === 'y' && deltaY > 100) ||
+					(dragAxis === 'x' && Math.abs(deltaX) > 100);
+
+				if (shouldClose) {
+					// Добавляем класс для анимации выхода
+					if (dragAxis === 'y') {
+						this.contentWrapper.classList.add('lm-throw-out-down');
+					} else if (deltaX > 0) {
+						this.contentWrapper.classList.add('lm-throw-out-right');
+					} else {
+						this.contentWrapper.classList.add('lm-throw-out-left');
+					}
+
+					setTimeout(() => {
+						this.close();
+					}, 200);
 				} else {
+					// Возвращаем на место
+					this.contentWrapper.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 					this.contentWrapper.style.transform = '';
 					this.contentWrapper.style.opacity = '';
 					this.backdrop.style.opacity = '';
+
+					setTimeout(() => {
+						this.contentWrapper.style.transition = '';
+					}, 300);
 				}
 
+				// Сброс значений
+				startX = 0;
 				startY = 0;
+				currentX = 0;
 				currentY = 0;
 				isDragging = false;
+				dragAxis = null;
 			};
 
-			this.contentWrapper.addEventListener('touchstart', handleStart, { passive: true });
-			this.contentWrapper.addEventListener('touchmove', handleMove, { passive: true });
+			// Touch события
+			this.contentWrapper.addEventListener('touchstart', handleStart, { passive: false });
+			this.contentWrapper.addEventListener('touchmove', handleMove, { passive: false });
 			this.contentWrapper.addEventListener('touchend', handleEnd, { passive: true });
 			this.contentWrapper.addEventListener('touchcancel', handleEnd, { passive: true });
+
+			// Mouse события для десктопа
+			this.contentWrapper.addEventListener('mousedown', handleStart);
+
+			// Глобальные mouse события
+			document.addEventListener('mousemove', handleMove);
+			document.addEventListener('mouseup', handleEnd);
+			document.addEventListener('mouseleave', handleEnd);
+
+			// Визуальная индикация при наведении
+			this.contentWrapper.addEventListener('mouseenter', () => {
+				if (!isDragging && this.options.dragToClose) {
+					this.contentWrapper.style.cursor = 'grab';
+				}
+			});
+
+			this.contentWrapper.addEventListener('mouseleave', () => {
+				if (!isDragging) {
+					this.contentWrapper.style.cursor = '';
+				}
+			});
+
+			// Сохраняем для очистки
+			this._dragCleanup = () => {
+				this.contentWrapper.removeEventListener('touchstart', handleStart);
+				this.contentWrapper.removeEventListener('touchmove', handleMove);
+				this.contentWrapper.removeEventListener('touchend', handleEnd);
+				this.contentWrapper.removeEventListener('touchcancel', handleEnd);
+				this.contentWrapper.removeEventListener('mousedown', handleStart);
+				document.removeEventListener('mousemove', handleMove);
+				document.removeEventListener('mouseup', handleEnd);
+				document.removeEventListener('mouseleave', handleEnd);
+			};
 		}
 
 		setupIdleMode() {
@@ -593,12 +738,13 @@
 
 		showLoader() {
 			if (!this.loader) {
-				const template = this.options.spinnerTpl;
 				const tempDiv = h('div');
-				tempDiv.innerHTML = template;
+				tempDiv.innerHTML = this.options.spinnerTpl;
 				this.loader = tempDiv.firstChild;
 				this.content.appendChild(this.loader);
 			}
+			// ключевой момент
+			this.container.classList.add('is-loading');
 		}
 
 		hideLoader() {
@@ -606,8 +752,9 @@
 				this.loader.remove();
 				this.loader = null;
 			}
+			// снимаем флаг
+			this.container.classList.remove('is-loading');
 		}
-
 		showError(message) {
 			this.hideLoader();
 			const errorDiv = h('div');
@@ -670,6 +817,11 @@
 
 		destroy() {
 			if (this.state === States.Destroyed) return;
+
+			// Cleanup drag
+			if (this._dragCleanup) {
+				this._dragCleanup();
+			}
 
 			// Cleanup idle mode
 			if (this._idleCleanup) {

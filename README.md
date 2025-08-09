@@ -1,549 +1,476 @@
-# LightModal 3.x
+# 🚀 LightModal v4.0
 
-Современная JavaScript библиотека для создания модальных окон с поддержкой нативного элемента `<dialog>`, вдохновленная Fancybox v6.
+<div align="center">
+  <p>
+    <strong>Легковесная, современная и полнофункциональная библиотека модальных окон</strong>
+  </p>
+  <p>
+    <img src="https://img.shields.io/badge/version-4.0.0-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/size-~15kb-green.svg" alt="Size">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
+    <img src="https://img.shields.io/badge/dependencies-0-orange.svg" alt="Dependencies">
+  </p>
+</div>
 
 ## ✨ Особенности
 
-- 🔥 **Нативная поддержка `<dialog>`** с fallback на обычные div элементы
-- 📱 **Touch-friendly** - swipe для закрытия на мобильных устройствах  
-- 🎨 **Современный дизайн** с поддержкой темной темы
-- 🚀 **Легковесная** - минимальные зависимости
-- ♿ **Доступность** - полная поддержка ARIA и управления фокусом
-- 🖼️ **Мультимедиа** - изображения, видео, YouTube, Vimeo, RuTube, VK
-- 🔒 **Умная блокировка скролла** с компенсацией scrollbar
-- 🎭 **Гибкая настройка** - множество опций и анимаций
-- 📋 **Inline контент** - показ скрытых элементов страницы
-- 🌐 **AJAX загрузка** - динамическая подгрузка контента
+- 🎯 **Нулевые зависимости** - чистый JavaScript, никаких внешних библиотек
+- 📱 **Полная адаптивность** - отлично работает на всех устройствах
+- 🎨 **Темы** - поддержка светлой/тёмной темы с auto-detect
+- 🖱️ **Drag-to-close** - закрытие свайпом/перетаскиванием в любом направлении
+- 🖼️ **Универсальность** - изображения, видео, YouTube, Vimeo, iframe, inline-контент
+- ♿ **Доступность** - полная поддержка клавиатуры, screen readers, ARIA
+- 🎭 **Анимации** - плавные и настраиваемые эффекты
+- 🔒 **Focus trap** - правильное управление фокусом
+- 📸 **Галереи** - встроенная поддержка с навигацией
+- 💤 **Idle режим** - автоскрытие элементов управления
+- 🌐 **Dialog API** - использование нативного `<dialog>` где поддерживается
 
 ## 📦 Установка
 
-### Подключение файлов
+### Вариант 1: Прямое подключение
 
 ```html
+<!-- CSS -->
 <link rel="stylesheet" href="lightmodal.css">
+
+<!-- JavaScript -->
 <script src="lightmodal.js"></script>
 ```
 
-### CDN (когда будет доступно)
+### Вариант 2: NPM (скоро)
+
+```bash
+npm install lightmodal
+```
+
+### Вариант 3: CDN (скоро)
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightmodal@3/dist/lightmodal.min.css">
-<script src="https://cdn.jsdelivr.net/npm/lightmodal@3/dist/lightmodal.min.js"></script>
+<!-- CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightmodal@4/dist/lightmodal.min.css">
+
+<!-- JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/lightmodal@4/dist/lightmodal.min.js"></script>
 ```
 
 ## 🚀 Быстрый старт
 
-### HTML разметка
+### Простое использование
 
 ```html
 <!-- Изображение -->
-<a href="image.jpg" data-lightmodal data-caption="Описание изображения">
-  <img src="thumb.jpg" alt="Миниатюра">
-</a>
-
-<!-- Inline контент -->
-<a href="#modal-content" data-lightmodal data-caption="Заголовок модалки">
-  Открыть модальное окно
-</a>
-
-<div id="modal-content" class="inline-content">
-  <h2>Заголовок</h2>
-  <p>Содержимое модального окна</p>
-</div>
+<a href="image.jpg" data-lightmodal>Открыть изображение</a>
 
 <!-- YouTube видео -->
-<a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" data-lightmodal>
-  Открыть YouTube
-</a>
+<a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" data-lightmodal>Смотреть видео</a>
+
+<!-- Inline контент -->
+<a href="#my-content" data-lightmodal>Показать контент</a>
+<div id="my-content" class="inline-content">
+  <h2>Заголовок</h2>
+  <p>Ваш контент здесь...</p>
+</div>
 ```
 
 ### JavaScript API
 
 ```javascript
-// Программное открытие
-LightModal.open({
-  src: '#my-content',
-  type: 'inline',
-  caption: 'Мой заголовок'
-}, {
-  mainClass: 'lm-zoom-in',
-  backdrop: true
+// Простое открытие
+LightModal.open('image.jpg');
+
+// С опциями
+LightModal.open('video.mp4', {
+  theme: 'dark',
+  dragToClose: true,
+  idle: 5000
 });
 
-// Закрытие текущей модалки
+// Массив элементов (галерея)
+LightModal.open([
+  { src: 'img1.jpg', caption: 'Фото 1' },
+  { src: 'img2.jpg', caption: 'Фото 2' },
+  { src: 'img3.jpg', caption: 'Фото 3' }
+], {
+  startIndex: 0
+});
+```
+
+## 📖 Подробная документация
+
+### Инициализация через data-атрибуты
+
+```html
+<!-- Основные атрибуты -->
+<a href="image.jpg" 
+   data-lightmodal
+   data-caption="Описание изображения"
+   data-gallery="my-gallery"
+   data-type="image">
+  Открыть
+</a>
+
+<!-- С дополнительными опциями -->
+<a href="video.mp4"
+   data-lightmodal
+   data-lm-theme="dark"
+   data-lm-width="800"
+   data-lm-height="600"
+   data-lm-drag-to-close="true">
+  Открыть видео
+</a>
+```
+
+### Поддерживаемые data-атрибуты
+
+| Атрибут | Описание | Значение по умолчанию |
+|---------|----------|----------------------|
+| `data-lightmodal` | Активирует LightModal | - |
+| `data-src` | Альтернативный источник (вместо href) | - |
+| `data-type` | Тип контента (image, video, iframe, ajax, inline) | auto |
+| `data-caption` | Подпись | - |
+| `data-gallery` | Имя галереи для группировки | - |
+| `data-lm-theme` | Тема (dark, light, auto) | dark |
+| `data-lm-width` | Ширина модального окна | auto |
+| `data-lm-height` | Высота модального окна | auto |
+| `data-lm-drag-to-close` | Закрытие перетаскиванием | true |
+| `data-lm-close-on-backdrop` | Закрытие по клику на фон | true |
+| `data-lm-close-on-esc` | Закрытие по Escape | true |
+| `data-lm-idle` | Время до idle режима (мс) | 3000 |
+
+### JavaScript API
+
+#### Методы класса
+
+```javascript
+// Открыть модальное окно
+const modal = LightModal.open(items, options);
+
+// Закрыть текущее модальное окно
 LightModal.close();
+
+// Закрыть все модальные окна
+LightModal.closeAll();
+
+// Получить текущий экземпляр
+const current = LightModal.getInstance();
+
+// Получить экземпляр по ID
+const modal = LightModal.getInstance('lm-1');
 ```
 
-## 📚 API Reference
-
-### Статические методы
-
-#### `LightModal.bind(selector)`
-
-Автоматически привязывает обработчики к элементам.
+#### Методы экземпляра
 
 ```javascript
-// По умолчанию привязывается к [data-lightmodal]
-LightModal.bind();
+const modal = LightModal.open(['img1.jpg', 'img2.jpg', 'img3.jpg']);
 
-// Кастомный селектор
-LightModal.bind('.my-modal-trigger');
-```
+// Навигация (для галерей)
+modal.next();        // Следующий элемент
+modal.prev();        // Предыдущий элемент
+modal.goTo(2);       // Перейти к индексу
 
-#### `LightModal.open(item, options)`
-
-Программное открытие модального окна.
-
-```javascript
-LightModal.open({
-  src: 'path/to/content',
-  type: 'image', // image, video, iframe, inline, ajax
-  caption: 'Описание',
-  alt: 'Alt текст для изображений'
-}, {
-  width: 800,
-  height: 600,
-  backdrop: true
+// События
+modal.on('open', (instance) => {
+  console.log('Модальное окно открыто');
 });
+
+modal.on('close', (instance) => {
+  console.log('Модальное окно закрывается');
+});
+
+modal.off('open', handler); // Удалить обработчик
+
+// Закрыть
+modal.close();
 ```
 
-#### `LightModal.close()`
-
-Закрывает текущее открытое модальное окно.
-
-#### `LightModal.openFromTrigger(element)`
-
-Открывает модалку на основе trigger элемента.
+### Опции
 
 ```javascript
-const trigger = document.querySelector('.my-trigger');
-LightModal.openFromTrigger(trigger);
-```
-
-### Конструктор
-
-```javascript
-const modal = new LightModal(item, options);
-```
-
-### Методы экземпляра
-
-#### `modal.show()`
-Показывает модальное окно.
-
-#### `modal.close()`
-Закрывает модальное окно.
-
-#### `modal.focus()`
-Устанавливает фокус на кнопку закрытия.
-
-## ⚙️ Опции
-
-### Основные настройки
-
-```javascript
-const defaults = {
+const options = {
   // Основные
   mainClass: '',              // Дополнительный CSS класс
-  backdrop: true,             // Показывать backdrop
-  backdropClick: true,        // Закрытие по клику на backdrop
-  keyboard: true,             // Закрытие по Escape
-  focus: true,                // Управление фокусом
-  modal: true,                // Использовать <dialog> если доступен
+  theme: 'dark',              // 'dark' | 'light' | 'auto'
+  startIndex: 0,              // Начальный индекс для галереи
   
-  // Внешний вид
-  compact: false,             // Компактный режим
-  width: null,                // Ширина модалки
-  height: null,               // Высота модалки
-  minWidth: null,             // Минимальная ширина
-  minHeight: null,            // Минимальная высота
-  maxWidth: null,             // Максимальная ширина
-  maxHeight: null,            // Максимальная высота
+  // Управление
+  closeButton: true,          // Показывать кнопку закрытия
+  closeOnBackdrop: true,      // Закрытие по клику на фон
+  closeOnEsc: true,           // Закрытие по Escape
+  closeExisting: false,       // Закрыть существующие модалки
   
-  // Поведение
-  autoFocus: true,            // Автофокус на первый элемент
-  restoreFocus: true,         // Восстановление фокуса
-  dragToClose: true,          // Закрытие свайпом
-  touch: true,                // Touch поддержка
-  
-  // Анимации
-  openEffect: 'fade',         // fade, zoom-in, slide-up
-  closeEffect: 'fade',        // Эффект закрытия
+  // Эффекты
+  fadeEffect: true,           // Эффект затухания
+  zoomEffect: true,           // Эффект масштабирования
   openSpeed: 366,             // Скорость открытия (мс)
   closeSpeed: 366,            // Скорость закрытия (мс)
   
-  // Элементы управления
-  closeBtn: true,             // Показывать кнопку закрытия
+  // Функциональность
+  dragToClose: true,          // Закрытие перетаскиванием
+  touch: true,                // Поддержка touch событий
+  keyboard: true,             // Управление клавиатурой
+  autoFocus: true,            // Автофокус на контенте
+  restoreFocus: true,         // Восстановить фокус после закрытия
+  hideScrollbar: true,        // Скрыть скроллбар body
   
-  // AJAX настройки
-  ajax: {
-    dataType: 'html',
-    headers: {}
-  },
+  // Idle режим
+  idle: 3000,                 // Время до idle режима (мс) или false
   
-  // Iframe настройки
-  iframe: {
-    scrolling: 'auto',
-    preload: true
+  // Размеры
+  width: null,                // Ширина (число или строка с единицами)
+  height: null,               // Высота (число или строка с единицами)
+  
+  // Шаблоны
+  spinnerTpl: '<div class="lm-spinner"></div>',
+  errorTpl: '<div class="lm-error">Ошибка загрузки</div>',
+  closeBtnTpl: '<button class="lm-close-btn">×</button>',
+  
+  // Callbacks
+  on: {
+    init: (instance) => {},
+    open: (instance) => {},
+    close: (instance) => {},
+    destroy: (instance) => {},
+    contentReady: (instance, item) => {},
+    change: (instance, index) => {}
   }
 };
+
+LightModal.open('content.html', options);
 ```
 
-### Data-атрибуты
-
-Опции можно задавать через data-атрибуты:
-
-```html
-<a href="image.jpg" 
-   data-lightmodal
-   data-lm-width="800"
-   data-lm-height="600"
-   data-lm-backdrop="false"
-   data-lm-main-class="my-custom-class"
-   data-caption="Мое изображение">
-  Открыть изображение
-</a>
-```
-
-## 🎭 Анимации
-
-### Встроенные эффекты
+### События
 
 ```javascript
-// Плавное появление (по умолчанию)
-{ openEffect: 'fade' }
+const modal = LightModal.open('image.jpg');
 
-// Увеличение из центра
-{ openEffect: 'zoom-in', mainClass: 'lm-zoom-in' }
+// Доступные события
+modal.on('init', (instance) => {
+  console.log('Инициализация');
+});
 
-// Выезд снизу
-{ openEffect: 'slide-up', mainClass: 'lm-slide-up' }
-```
+modal.on('open', (instance) => {
+  console.log('Открыто');
+});
 
-### Кастомные анимации
+modal.on('contentReady', (instance, item) => {
+  console.log('Контент загружен', item);
+});
 
-```css
-.my-custom-animation .lm-content-wrapper {
-  transform: rotateX(-90deg);
-  transform-origin: center top;
-}
+modal.on('change', (instance, index) => {
+  console.log('Изменен слайд', index);
+});
 
-.my-custom-animation.is-open .lm-content-wrapper {
-  transform: rotateX(0deg);
-}
-```
+modal.on('close', (instance) => {
+  console.log('Закрывается');
+});
 
-## 🖼️ Типы контента
-
-### Изображения
-
-```html
-<a href="image.jpg" data-lightmodal data-type="image">
-  <img src="thumb.jpg" alt="Thumbnail">
-</a>
-```
-
-Поддерживаемые форматы: `.png`, `.jpg`, `.jpeg`, `.webp`, `.avif`, `.gif`, `.svg`
-
-### Видео
-
-```html
-<!-- Локальное видео -->
-<a href="video.mp4" data-lightmodal data-type="video">Видео</a>
-
-<!-- YouTube -->
-<a href="https://www.youtube.com/watch?v=VIDEO_ID" data-lightmodal>YouTube</a>
-
-<!-- Vimeo -->
-<a href="https://vimeo.com/VIDEO_ID" data-lightmodal>Vimeo</a>
-
-<!-- RuTube -->
-<a href="https://rutube.ru/video/VIDEO_ID" data-lightmodal>RuTube</a>
-
-<!-- VK -->
-<a href="https://vk.com/video_ID" data-lightmodal>VK Видео</a>
-```
-
-### Inline контент
-
-```html
-<a href="#my-content" data-lightmodal data-type="inline">Открыть</a>
-
-<div id="my-content" class="inline-content">
-  <h2>Заголовок</h2>
-  <p>Скрытый контент, который покажется в модалке</p>
-</div>
-```
-
-### AJAX контент
-
-```html
-<a href="/api/content" data-lightmodal data-type="ajax">Загрузить</a>
-```
-
-```javascript
-LightModal.open({
-  src: '/api/modal-content',
-  type: 'ajax'
-}, {
-  ajax: {
-    headers: {
-      'Authorization': 'Bearer token'
-    }
-  }
+modal.on('destroy', (instance) => {
+  console.log('Уничтожено');
 });
 ```
 
-### Iframe
-
-```html
-<a href="https://example.com" data-lightmodal data-type="iframe">Сайт</a>
-```
-
-## 📱 Touch и мобильные устройства
-
-### Swipe для закрытия
-
-На touch устройствах доступен swipe вниз для закрытия:
-
-```javascript
-{
-  dragToClose: true,    // Включить swipe
-  touch: true          // Touch поддержка
-}
-```
-
-### Мобильная оптимизация
-
-```css
-/* Автоматические стили для мобильных */
-@media (max-width: 768px) {
-  .lm-content-wrapper {
-    border-radius: 12px 12px 0 0;
-    max-height: 85vh;
-  }
-  
-  .lm-container.is-mobile-bottom .lm-content-wrapper {
-    margin-top: auto;
-    margin-bottom: 0;
-  }
-}
-```
-
-## 🎨 Кастомизация стилей
+## 🎨 Кастомизация
 
 ### CSS переменные
 
 ```css
 :root {
+  /* Backdrop */
   --lm-backdrop-bg: rgba(24, 24, 27, 0.95);
+  --lm-backdrop-blur: 4px;
+  
+  /* Анимации */
   --lm-duration: 366ms;
+  
+  /* Цвета */
   --lm-bg: #fff;
+  --lm-color: #222;
+  --lm-border-color: rgba(0, 0, 0, 0.1);
+  
+  /* Кнопка закрытия */
+  --lm-close-bg: rgba(255, 255, 255, 0.9);
+  --lm-close-color: #444;
+  --lm-close-size: 36px;
+  
+  /* Контент */
   --lm-border-radius: 12px;
   --lm-content-padding: 2rem;
-  --lm-close-size: 36px;
-  --lm-shadow-large: 0 24px 80px rgba(0, 0, 0, 0.25);
-}
-
-/* Темная тема */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --lm-bg: #1a1a1a;
-    --lm-close-color: #fff;
-  }
+  
+  /* И многие другие... */
 }
 ```
 
-### Кастомные классы
+### Кастомные темы
 
 ```css
-.my-modal {
+/* Создание своей темы */
+[data-theme="custom"] {
   --lm-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --lm-border-radius: 20px;
-}
-
-.my-modal .lm-content {
-  color: white;
+  --lm-color: #fff;
+  --lm-close-bg: rgba(255, 255, 255, 0.2);
+  --lm-close-color: #fff;
 }
 ```
 
-## ♿ Доступность
-
-### ARIA атрибуты
-
-Библиотека автоматически добавляет необходимые ARIA атрибуты:
-
-- `role="dialog"`
-- `aria-modal="true"`
-- `aria-labelledby` / `aria-describedby`
-- `aria-hidden`
-
-### Управление фокусом
-
 ```javascript
-{
-  focus: true,           // Trap фокуса внутри модалки
-  autoFocus: true,       // Автофокус на первый элемент
-  restoreFocus: true     // Возврат фокуса после закрытия
-}
-```
-
-### Клавиатурная навигация
-
-- `Escape` - закрытие модалки
-- `Tab` / `Shift+Tab` - навигация по элементам
-- `Enter` / `Space` - активация кнопок
-
-## 🔧 События
-
-### Прослушивание событий
-
-```javascript
-// Открытие модалки
-document.addEventListener('lightmodal:show', (e) => {
-  console.log('Модалка открыта:', e.detail.instance);
-});
-
-// Закрытие модалки
-document.addEventListener('lightmodal:close', (e) => {
-  console.log('Модалка закрыта:', e.detail.instance);
+// Использование кастомной темы
+LightModal.open('content.html', {
+  theme: 'custom'
 });
 ```
 
-### Кастомные обработчики
-
-```javascript
-const modal = new LightModal(item, options);
-
-// Добавляем кастомную логику
-modal.container.addEventListener('lightmodal:show', () => {
-  // Действия при открытии
-});
-```
-
-## 🔍 Расширенные примеры
+## 🎮 Примеры использования
 
 ### Галерея изображений
 
 ```html
 <div class="gallery">
-  <a href="img1.jpg" data-lightmodal data-gallery="nature" data-caption="Фото 1">
-    <img src="thumb1.jpg" alt="Thumb 1">
+  <a href="img1.jpg" data-lightmodal data-gallery="vacation" data-caption="Фото 1">
+    <img src="thumb1.jpg" alt="Thumbnail 1">
   </a>
-  <a href="img2.jpg" data-lightmodal data-gallery="nature" data-caption="Фото 2">
-    <img src="thumb2.jpg" alt="Thumb 2">
+  <a href="img2.jpg" data-lightmodal data-gallery="vacation" data-caption="Фото 2">
+    <img src="thumb2.jpg" alt="Thumbnail 2">
+  </a>
+  <a href="img3.jpg" data-lightmodal data-gallery="vacation" data-caption="Фото 3">
+    <img src="thumb3.jpg" alt="Thumbnail 3">
   </a>
 </div>
 ```
 
-### Форма в модалке
+### Видео галерея
+
+```javascript
+const videos = [
+  { 
+    src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    caption: 'Rick Astley - Never Gonna Give You Up'
+  },
+  { 
+    src: 'https://vimeo.com/347119375',
+    caption: 'Beautiful Nature'
+  },
+  { 
+    src: 'video.mp4',
+    type: 'video',
+    caption: 'Local Video'
+  }
+];
+
+LightModal.open(videos, {
+  theme: 'dark',
+  startIndex: 0
+});
+```
+
+### Формы и AJAX контент
 
 ```html
-<a href="#contact-form" data-lightmodal data-lm-width="600">Связаться</a>
+<!-- Форма обратной связи -->
+<button onclick="openContactForm()">Связаться с нами</button>
 
 <div id="contact-form" class="inline-content">
-  <h2>Обратная связь</h2>
+  <h2>Форма обратной связи</h2>
   <form>
-    <input type="text" placeholder="Имя" required>
+    <input type="text" placeholder="Ваше имя" required>
+    <input type="email" placeholder="Email" required>
     <textarea placeholder="Сообщение" required></textarea>
     <button type="submit">Отправить</button>
   </form>
 </div>
+
+<script>
+function openContactForm() {
+  const modal = LightModal.open('#contact-form', {
+    width: 500,
+    closeOnBackdrop: false,
+    on: {
+      open: () => {
+        // Фокус на первом поле
+        modal.content.querySelector('input').focus();
+      }
+    }
+  });
+}
+</script>
+```
+
+### Подтверждение действий
+
+```javascript
+function confirmDelete(itemId) {
+  const modal = LightModal.open({
+    src: '#confirm-delete',
+    type: 'inline'
+  }, {
+    width: 400,
+    closeOnBackdrop: false,
+    closeOnEsc: false,
+    closeButton: false
+  });
+  
+  // Обработчики кнопок
+  modal.content.querySelector('.confirm').onclick = () => {
+    deleteItem(itemId);
+    modal.close();
+  };
+  
+  modal.content.querySelector('.cancel').onclick = () => {
+    modal.close();
+  };
+}
+```
+
+## 🎯 Продвинутые возможности
+
+### Drag-to-close
+
+Модальное окно можно закрыть, потянув его в любом направлении:
+
+- **Вниз** - классическое закрытие свайпом вниз (мобильные устройства)
+- **Влево/Вправо** - закрытие горизонтальным свайпом
+- **Поддержка мыши** - работает и на десктопе с перетаскиванием мышью
+
+```javascript
+LightModal.open('image.jpg', {
+  dragToClose: true  // Включено по умолчанию
+});
+```
+
+### Idle режим
+
+Автоматическое скрытие элементов управления при бездействии:
+
+```javascript
+LightModal.open('video.mp4', {
+  idle: 5000  // Скрыть UI через 5 секунд
+});
 ```
 
 ### Программное управление
 
 ```javascript
-class MyApp {
-  constructor() {
-    this.initModals();
+// Создаём экземпляр
+const modal = LightModal.open(['img1.jpg', 'img2.jpg']);
+
+// Управляем извне
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') modal.next();
+  if (e.key === 'ArrowLeft') modal.prev();
+  if (e.key === 'Home') modal.goTo(0);
+  if (e.key === 'End') modal.goTo(modal.items.length - 1);
+});
+
+// Автопереключение слайдов
+let autoplayInterval = setInterval(() => {
+  if (modal.currentIndex < modal.items.length - 1) {
+    modal.next();
+  } else {
+    modal.goTo(0); // Вернуться к началу
   }
-  
-  initModals() {
-    // Кастомный биндинг
-    LightModal.bind('.open-modal');
-    
-    // Обработка событий
-    document.addEventListener('lightmodal:show', this.onModalShow.bind(this));
-  }
-  
-  openWelcomeModal() {
-    LightModal.open({
-      src: '#welcome-content',
-      type: 'inline',
-      caption: 'Добро пожаловать!'
-    }, {
-      backdrop: true,
-      backdropClick: false, // Нельзя закрыть кликом
-      keyboard: false,      // Нельзя закрыть Escape
-      mainClass: 'welcome-modal'
-    });
-  }
-  
-  onModalShow(e) {
-    console.log('Modal opened:', e.detail);
-    
-    // Отправляем аналитику
-    gtag('event', 'modal_open', {
-      modal_type: e.detail.item.type,
-      modal_src: e.detail.item.src
-    });
-  }
-}
+}, 3000);
 
-const app = new MyApp();
-```
-
-## 🐛 Отладка
-
-### Консольные сообщения
-
-Библиотека выводит полезные сообщения в консоль:
-
-```javascript
-console.log('🔒 Scroll locked, scrollbar width: 15px');
-console.log('👆 Touch start:', startY);
-console.log('🔄 Drag started');
-console.log('✅ Closing modal via swipe');
-console.log('🔓 Scroll unlocked');
-```
-
-### Проверка поддержки
-
-```javascript
-console.log('Dialog support:', 'HTMLDialogElement' in window ? '✅ Supported' : '❌ Not supported');
-console.log('Touch device:', isTouchDevice() ? '✅ Yes' : '❌ No');
-```
-
-## 🌐 Поддержка браузеров
-
-### Современные браузеры
-- Chrome 37+
-- Firefox 98+
-- Safari 15.4+
-- Edge 79+
-
-### Fallback для старых браузеров
-Для браузеров без поддержки `<dialog>` автоматически используется div с аналогичным функционалом.
-
-## 📄 Лицензия
-
-MIT License - свободное использование в любых проектах.
-
-## 🤝 Участие в разработке
-
-1. Fork репозитория
-2. Создайте feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit изменения (`git commit -m 'Add amazing feature'`)
-4. Push в branch (`git push origin feature/amazing-feature`)
-5. Создайте Pull Request
-
-## 📞 Поддержка
-
-- GitHub Issues для багов и предложений
-- Документация на сайте проекта
-- Stack Overflow с тегом `lightmodal`
-
----
-
-Создано с ❤️ для современного веба
+// Остановить при закрытии
+modal.on('close', () => {
+  clearInterval(autoplayInterval);
+});
