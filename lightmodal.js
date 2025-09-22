@@ -1,4 +1,4 @@
-// LightModal 4.0 – Улучшенная версия с полным функционалом как у Fancybox
+// LightModal 4.0.1 - Улучшенная версия с полным функционалом
 (function () {
 	'use strict';
 
@@ -34,11 +34,25 @@
 	const VIDEO_RE = /\.(mp4|webm|ogg|m4v)(\?.*)?$/i;
 	const YOUTUBE_RE = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([^&#?]{11})/;
 	const VIMEO_RE = /vimeo\.com\/(?:video\/)?(\d+)/;
+	const RUTUBE_RE = /rutube\.ru\/(?:video\/|play\/embed\/)([a-zA-Z0-9]+)/;
+	const VK_RE = /vk\.com\/(?:video_ext\.php\?oid=(-?\d+)&id=(\d+)|video(-?\d+)_(\d+))/;
 
 	const isImg = (type, src) => type === 'image' || (!type && IMG_RE.test(src));
 	const isVideo = (type, src) => type === 'video' || (!type && VIDEO_RE.test(src));
 	const getYouTubeId = url => (url.match(YOUTUBE_RE) || [])[1];
 	const getVimeoId = url => (url.match(VIMEO_RE) || [])[1];
+	const getRutubeId = url => (url.match(RUTUBE_RE) || [])[1];
+	const getVkVideoId = url => {
+		const match = url.match(VK_RE);
+		if (!match) return null;
+		// VK может иметь разные форматы URL
+		if (match[1] && match[2]) {
+			return { oid: match[1], id: match[2] };
+		} else if (match[3] && match[4]) {
+			return { oid: match[3], id: match[4] };
+		}
+		return null;
+	};
 
 	// Device detection
 	const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -52,21 +66,17 @@
 		Destroyed: 3
 	};
 
-	// Scroll lock implementation (улучшенная версия как в Fancybox)
+	// Scroll lock implementation
 	const scrollLock = {
 		locked: false,
 		scrollbarWidth: 0,
 		originalMargin: 0,
 
 		getScrollbarWidth() {
-			// Кешируем значение
 			if (this.scrollbarWidth !== 0) return this.scrollbarWidth;
-
-			// Вычисляем реальную ширину скроллбара
 			const documentWidth = document.documentElement.clientWidth;
 			const windowWidth = window.innerWidth;
 			this.scrollbarWidth = Math.max(0, windowWidth - documentWidth);
-
 			return this.scrollbarWidth;
 		},
 
@@ -78,18 +88,14 @@
 			const body = document.body;
 			const html = document.documentElement;
 
-			// Сохраняем оригинальный margin
 			this.originalMargin = parseFloat(window.getComputedStyle(body).marginRight) || 0;
 
-			// Устанавливаем CSS переменные как в Fancybox
 			html.style.setProperty('--lm-scrollbar-compensate', `${scrollbarWidth}px`);
 			html.style.setProperty('--lm-body-margin', `${this.originalMargin}px`);
 
-			// Добавляем классы
 			html.classList.add('lm-scroll-locked');
 			body.classList.add('lm-scroll-locked-body');
 
-			// Применяем компенсацию как в Fancybox
 			if (scrollbarWidth > 0) {
 				body.style.marginRight = `calc(var(--lm-body-margin, 0px) + var(--lm-scrollbar-compensate, 0px))`;
 			}
@@ -102,14 +108,9 @@
 			const body = document.body;
 			const html = document.documentElement;
 
-			// Восстанавливаем оригинальные стили
 			body.style.marginRight = '';
-
-			// Убираем классы
 			html.classList.remove('lm-scroll-locked');
 			body.classList.remove('lm-scroll-locked-body');
-
-			// Очищаем CSS переменные
 			html.style.removeProperty('--lm-scrollbar-compensate');
 			html.style.removeProperty('--lm-body-margin');
 
@@ -321,11 +322,6 @@
 				this.container.classList.add(this.options.mainClass);
 			}
 
-			// Мобильные стили
-			if (isMobile()) {
-				this.container.classList.add('is-mobile-bottom');
-			}
-
 			// Применяем размеры если указаны
 			if (this.options.width) {
 				this.contentWrapper.style.maxWidth =
@@ -375,7 +371,7 @@
 				});
 			}
 
-			// Drag to close - работает и на touch, и на десктопе
+			// Drag to close
 			if (this.options.dragToClose) {
 				this.setupDragToClose();
 			}
@@ -641,11 +637,20 @@
 				if (src.startsWith('#')) {
 					const element = document.querySelector(src);
 					if (element) {
-						const clone = element.cloneNode(true);
-						clone.style.display = 'block';
-						clone.classList.remove('inline-content');
-						this.setContent(clone);
+						// Сохраняем оригинальный родитель и позицию
+						if (!element._originalParent) {
+							element._originalParent = element.parentNode;
+							element._originalNextSibling = element.nextSibling;
+						}
+
+						// Перемещаем элемент вместо клонирования
+						element.style.display = 'block';
+						element.classList.remove('inline-content');
+						this.setContent(element);
 						this.content.classList.add('has-inline-content');
+
+						// Сохраняем ссылку для возврата
+						this.movedElement = element;
 					} else {
 						throw new Error(`Element ${src} not found`);
 					}
@@ -670,8 +675,16 @@
 				// YouTube
 				const youtubeId = getYouTubeId(src);
 				if (youtubeId) {
+					const params = new URLSearchParams({
+						autoplay: 1,
+						rel: 0,
+						modestbranding: 1,
+						playsinline: 1,
+						fs: 1,
+						enablejsapi: 1
+					});
 					const iframe = this.createIframe(
-						`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`
+						`https://www.youtube.com/embed/${youtubeId}?${params.toString()}`
 					);
 					this.setContent(iframe);
 					this.content.classList.add('has-iframe');
@@ -681,8 +694,40 @@
 				// Vimeo
 				const vimeoId = getVimeoId(src);
 				if (vimeoId) {
+					const params = new URLSearchParams({
+						autoplay: 1,
+						playsinline: 1,
+						byline: 0,
+						portrait: 0
+					});
 					const iframe = this.createIframe(
-						`https://player.vimeo.com/video/${vimeoId}?autoplay=1`
+						`https://player.vimeo.com/video/${vimeoId}?${params.toString()}`
+					);
+					this.setContent(iframe);
+					this.content.classList.add('has-iframe');
+					return;
+				}
+
+				// Rutube
+				const rutubeId = getRutubeId(src);
+				if (rutubeId) {
+					const params = new URLSearchParams({
+						autoplay: 1,
+						playsinline: 1
+					});
+					const iframe = this.createIframe(
+						`https://rutube.ru/play/embed/${rutubeId}?${params.toString()}`
+					);
+					this.setContent(iframe);
+					this.content.classList.add('has-iframe');
+					return;
+				}
+
+				// VK Video
+				const vkVideoId = getVkVideoId(src);
+				if (vkVideoId) {
+					const iframe = this.createIframe(
+						`https://vk.com/video_ext.php?oid=${vkVideoId.oid}&id=${vkVideoId.id}&hd=2&autoplay=1`
 					);
 					this.setContent(iframe);
 					this.content.classList.add('has-iframe');
@@ -714,9 +759,11 @@
 			const iframe = h('iframe');
 			iframe.src = src;
 			iframe.allowFullscreen = true;
+			iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
 			iframe.frameBorder = '0';
 			iframe.style.width = '100%';
 			iframe.style.height = '100%';
+			iframe.loading = 'lazy';
 			return iframe;
 		}
 
@@ -743,7 +790,6 @@
 				this.loader = tempDiv.firstChild;
 				this.content.appendChild(this.loader);
 			}
-			// ключевой момент
 			this.container.classList.add('is-loading');
 		}
 
@@ -752,9 +798,9 @@
 				this.loader.remove();
 				this.loader = null;
 			}
-			// снимаем флаг
 			this.container.classList.remove('is-loading');
 		}
+
 		showError(message) {
 			this.hideLoader();
 			const errorDiv = h('div');
@@ -861,7 +907,19 @@
 			if (LightModal.currentInstance === this) {
 				LightModal.currentInstance = null;
 			}
+			if (this.movedElement && this.movedElement._originalParent) {
+				this.movedElement.style.display = 'none';
+				this.movedElement.classList.add('inline-content');
 
+				if (this.movedElement._originalNextSibling) {
+					this.movedElement._originalParent.insertBefore(
+						this.movedElement,
+						this.movedElement._originalNextSibling
+					);
+				} else {
+					this.movedElement._originalParent.appendChild(this.movedElement);
+				}
+			}
 			this.state = States.Destroyed;
 			this.emit('destroy');
 		}
@@ -1029,7 +1087,7 @@
 	}
 
 	// Версия
-	LightModal.version = '4.0.0';
+	LightModal.version = '4.0.1';
 
 	console.log('🚀 LightModal 4.0 initialized');
 

@@ -1,6 +1,6 @@
 :root {
 	/* Backdrop */
-	--lm-backdrop-bg: rgba(24, 24, 27, 0.95);
+	--lm-backdrop-bg: rgba(182, 187, 198, 0.8);
 	--lm-backdrop-blur: 4px;
 
 	/* Animations */
@@ -45,7 +45,7 @@
 }
 
 /* Dark theme */
-[data-theme="dark"] {
+/* [data-theme="dark"] {
 	--lm-bg: #1a1a1a;
 	--lm-color: #fff;
 	--lm-border-color: rgba(255, 255, 255, 0.1);
@@ -56,7 +56,14 @@
 	--lm-caption-bg: rgba(0, 0, 0, 0.9);
 	--lm-spinner-color-1: rgba(255, 255, 255, 0.2);
 	--lm-spinner-color-2: rgba(255, 255, 255, 0.8);
-}
+	--lm-backdrop-bg: rgba(15, 15, 15, 0.95);
+} */
+
+/* Light theme override */
+/* [data-theme="light"] {
+	--lm-backdrop-bg: rgba(255, 255, 255, 0.95);
+	--lm-backdrop-blur: 8px;
+} */
 
 /* Responsive height */
 @supports (height: 100dvh) {
@@ -72,7 +79,7 @@
 	}
 }
 
-/* Scroll lock - как в Fancybox */
+/* Scroll lock */
 html.lm-scroll-locked {
 	width: auto;
 	overflow: visible;
@@ -87,7 +94,7 @@ html.lm-scroll-locked body.lm-scroll-locked-body {
 	width: auto;
 	overflow: hidden !important;
 	overscroll-behavior-y: none;
-	/* Компенсация как в Fancybox */
+	/* Компенсация скроллбара */
 	margin-right: calc(var(--lm-body-margin, 0px) + var(--lm-scrollbar-compensate, 0px)) !important;
 }
 
@@ -121,6 +128,10 @@ dialog.lm-container {
 }
 
 /* Dialog specific */
+dialog.lm-container::backdrop {
+	display: none;
+}
+
 dialog.lm-container:focus-visible {
 	outline: none;
 	box-shadow: none;
@@ -132,13 +143,6 @@ dialog.lm-container[open] {
 
 dialog.lm-container:not([open]) {
 	display: none;
-}
-
-dialog.lm-container::backdrop {
-	background: rgba(24, 24, 27, 0.95);
-	backdrop-filter: blur(4px);
-	opacity: 0;
-	transition: opacity var(--lm-duration) var(--lm-ease-in-out);
 }
 
 /* States */
@@ -161,20 +165,19 @@ dialog.lm-container.is-closing {
 	z-index: 1;
 }
 
-.lm-container.is-open .lm-backdrop,
-dialog.lm-container.is-open::backdrop {
+.lm-container.is-open .lm-backdrop {
 	opacity: 1;
 }
 
-.lm-container.is-closing .lm-backdrop,
-dialog.lm-container.is-closing::backdrop {
+.lm-container.is-closing .lm-backdrop {
 	opacity: 0;
 	transition: opacity var(--lm-duration) var(--lm-ease-out);
 }
 
+/* Loading state */
 .lm-container.is-loading .lm-content-wrapper {
-	min-width: clamp(320px, 80vw, 1200px);
-	min-height: clamp(220px, 70vh, 800px);
+	min-width: clamp(320px, 80vw, 600px);
+	min-height: clamp(200px, 50vh, 400px);
 }
 
 /* Content wrapper */
@@ -346,7 +349,6 @@ dialog.lm-container.is-closing .lm-content-wrapper {
 	padding: 0;
 	overflow: hidden;
 	overscroll-behavior: contain;
-	/* scrollbar-gutter: stable; */
 	flex: 1;
 	min-height: 0;
 	display: flex;
@@ -366,22 +368,13 @@ dialog.lm-container.is-closing .lm-content-wrapper {
 	justify-content: initial;
 }
 
-/* Scrollbar styling */
-.lm-content::-webkit-scrollbar {
-	width: 6px;
+/* Dark theme scrollbar */
+[data-theme="dark"] .lm-content::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.2);
 }
 
-.lm-content::-webkit-scrollbar-track {
-	background: transparent;
-}
-
-.lm-content::-webkit-scrollbar-thumb {
-	background: rgba(0, 0, 0, 0.2);
-	border-radius: 3px;
-}
-
-.lm-content::-webkit-scrollbar-thumb:hover {
-	background: rgba(0, 0, 0, 0.3);
+[data-theme="dark"] .lm-content::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.3);
 }
 
 /* Media content */
@@ -470,11 +463,15 @@ dialog.lm-container.is-closing .lm-content-wrapper {
 	transform: translateX(-50%);
 	width: 40px;
 	height: 4px;
-	background: rgba(255, 255, 255, 0.3);
+	background: rgba(0, 0, 0, 0.2);
 	border-radius: 2px;
 	opacity: 0;
 	transition: opacity 0.2s ease;
 	z-index: 11;
+}
+
+[data-theme="dark"] .lm-drag-indicator {
+	background: rgba(255, 255, 255, 0.3);
 }
 
 .lm-container.is-touch .lm-drag-indicator {
@@ -491,36 +488,83 @@ dialog.lm-container.is-closing .lm-content-wrapper {
 	opacity: 1;
 }
 
-/* Mobile styles */
+/* Mobile styles - Центрирование вместо bottom sheet */
 @media (max-width: 768px) {
+	.lm-container {
+		padding: 1rem;
+	}
+
 	.lm-container.is-loading .lm-content-wrapper {
-		min-width: 100vw;
-		min-height: 60vh;
+		min-width: 90vw;
+		min-height: auto;
+		aspect-ratio: 16 / 9;
 	}
 
 	.lm-content-wrapper {
-		border-radius: 12px 12px 0 0;
-		max-height: 85vh;
-		max-width: 100vw;
+		border-radius: var(--lm-border-radius);
+		max-height: 90vh;
+		max-width: 95vw;
+		width: auto;
+		height: auto;
+		margin: auto;
 	}
 
-	.lm-container.is-mobile-bottom .lm-content-wrapper {
-		margin-top: auto;
-		margin-bottom: 0;
-		transform: translateY(100%);
+	/* Отключаем bottom sheet стиль */
+	.lm-container .lm-content-wrapper {
+		transform: scale(0.95) translateY(20px);
 	}
 
-	.lm-container.is-mobile-bottom.is-open .lm-content-wrapper {
-		transform: translateY(0);
+	.lm-container.is-open .lm-content-wrapper {
+		transform: scale(1) translateY(0);
 	}
 
+	/* Drag indicator на мобильных */
 	.lm-drag-indicator {
 		opacity: 1;
-		background: rgba(0, 0, 0, 0.2);
 	}
 
-	[data-theme="dark"] .lm-drag-indicator {
-		background: rgba(255, 255, 255, 0.3);
+	/* Оптимизация видео для мобильных */
+	.lm-content.has-iframe {
+		width: 100%;
+		height: 100%;
+		min-height: 250px;
+	}
+
+	.lm-content.has-iframe iframe {
+		min-height: 250px;
+		max-height: 60vh;
+	}
+
+	/* Изображения на мобильных */
+	.lm-content img {
+		max-height: 70vh;
+	}
+
+	/* Close button на мобильных */
+	.lm-close-btn {
+		width: 32px;
+		height: 32px;
+		top: 8px;
+		right: 8px;
+	}
+
+	.lm-close-btn svg {
+		width: 18px;
+		height: 18px;
+	}
+
+	/* Caption на мобильных */
+	.lm-caption {
+		padding: 0.75rem 1rem;
+		font-size: 13px;
+	}
+}
+
+/* Планшеты */
+@media (min-width: 769px) and (max-width: 1024px) {
+	.lm-content-wrapper {
+		max-width: min(85vw, 900px);
+		max-height: min(85vh, 700px);
 	}
 }
 
@@ -566,6 +610,13 @@ dialog.lm-container.is-closing .lm-content-wrapper {
 		animation: none;
 		border-top-color: transparent;
 		border-color: var(--lm-spinner-color-2);
+	}
+
+	.lm-content-wrapper.lm-throw-out-down,
+	.lm-content-wrapper.lm-throw-out-left,
+	.lm-content-wrapper.lm-throw-out-right {
+		animation: none;
+		opacity: 0;
 	}
 }
 
