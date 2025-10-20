@@ -45,7 +45,6 @@
 	const getVkVideoId = url => {
 		const match = url.match(VK_RE);
 		if (!match) return null;
-		// VK может иметь разные форматы URL
 		if (match[1] && match[2]) {
 			return { oid: match[1], id: match[2] };
 		} else if (match[3] && match[4]) {
@@ -237,6 +236,9 @@
 			this.dragStartY = 0;
 			this.dragOffset = 0;
 
+			// Inline content
+			this.movedElement = null;
+
 			// События
 			this.events = new Map();
 
@@ -292,6 +294,15 @@
 
 			// Content wrapper
 			this.contentWrapper = h('div', 'lm-content-wrapper');
+
+			const firstItem = this.items[0];
+			if (firstItem && firstItem.src && firstItem.src.startsWith('#')) {
+				const elementId = firstItem.src.replace('#', '');
+				const sourceElement = document.getElementById(elementId);
+				if (sourceElement && sourceElement.id) {
+					this.contentWrapper.classList.add(sourceElement.id);
+				}
+			}
 
 			// Drag indicator для touch устройств
 			if (isTouchDevice() && this.options.dragToClose) {
@@ -633,23 +644,24 @@
 			this.showLoader();
 
 			try {
-				// Inline content
+				// Inline content - ПЕРЕМЕЩАЕМ элемент, а не клонируем!
 				if (src.startsWith('#')) {
 					const element = document.querySelector(src);
 					if (element) {
-						// Сохраняем оригинальный родитель и позицию
-						if (!element._originalParent) {
-							element._originalParent = element.parentNode;
-							element._originalNextSibling = element.nextSibling;
+						// Сохраняем оригинальный родитель и позицию только один раз
+						if (!element._lmOriginalParent) {
+							element._lmOriginalParent = element.parentNode;
+							element._lmOriginalNextSibling = element.nextSibling;
+							element._lmOriginalDisplay = window.getComputedStyle(element).display;
 						}
 
-						// Перемещаем элемент вместо клонирования
+						// Перемещаем элемент в модальное окно
 						element.style.display = 'block';
 						element.classList.remove('inline-content');
 						this.setContent(element);
 						this.content.classList.add('has-inline-content');
 
-						// Сохраняем ссылку для возврата
+						// Сохраняем ссылку для возврата при закрытии
 						this.movedElement = element;
 					} else {
 						throw new Error(`Element ${src} not found`);
@@ -902,24 +914,34 @@
 				scrollLock.unlock();
 			}
 
+			// Возвращаем inline элемент на исходное место
+			if (this.movedElement && this.movedElement._lmOriginalParent) {
+				// Восстанавливаем оригинальное отображение
+				this.movedElement.style.display = this.movedElement._lmOriginalDisplay;
+				this.movedElement.classList.add('inline-content');
+
+				// Возвращаем элемент на его исходную позицию в DOM
+				if (this.movedElement._lmOriginalNextSibling) {
+					this.movedElement._lmOriginalParent.insertBefore(
+						this.movedElement,
+						this.movedElement._lmOriginalNextSibling
+					);
+				} else {
+					this.movedElement._lmOriginalParent.appendChild(this.movedElement);
+				}
+
+				// НЕ очищаем метаданные - они нужны для повторного открытия
+				// delete this.movedElement._lmOriginalParent;
+				// delete this.movedElement._lmOriginalNextSibling;
+				// delete this.movedElement._lmOriginalDisplay;
+			}
+
 			// Clear instance
 			LightModal.instances.delete(this.id);
 			if (LightModal.currentInstance === this) {
 				LightModal.currentInstance = null;
 			}
-			if (this.movedElement && this.movedElement._originalParent) {
-				this.movedElement.style.display = 'none';
-				this.movedElement.classList.add('inline-content');
 
-				if (this.movedElement._originalNextSibling) {
-					this.movedElement._originalParent.insertBefore(
-						this.movedElement,
-						this.movedElement._originalNextSibling
-					);
-				} else {
-					this.movedElement._originalParent.appendChild(this.movedElement);
-				}
-			}
 			this.state = States.Destroyed;
 			this.emit('destroy');
 		}
@@ -1089,6 +1111,6 @@
 	// Версия
 	LightModal.version = '4.0.1';
 
-	console.log('🚀 LightModal 4.0 initialized');
+	console.log('🚀 LightModal 4.0.1 initialized');
 
 })();
